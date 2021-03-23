@@ -171,7 +171,7 @@ def example(print_maze = True):
 
 
 
-#Graph Djikstra
+#Graph Djikstra from https://www.bogotobogo.com/python/python_Dijkstras_Shortest_Path_Algorithm.php
 import sys
 import heapq
 
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     shortest(target, path)
     print ('The shortest path : %s' %(path[::-1]))
     
-#Astar Graph version
+#Astar Graph version from https://stackabuse.com/basic-ai-concepts-a-search-algorithm/
 from collections import deque
 
 class Graph:
