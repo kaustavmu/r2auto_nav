@@ -36,7 +36,21 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
                     neighbours.append(test_node)
         return neighbours
 
-
+    def vvs(path):
+        newpath = [path[0]]
+        for elem in path[1:len(path)]:
+            for g in getNeighbours(matrix[elem[0]][elem[1]]):
+                if int(round(matrix[g[0]][g[1]])) == 3:
+                    counter += 1
+                    continue
+                else:
+                    continue
+            if counter >= 4:
+                newpath.append(elem)
+            newpath.append(path[-1])
+        return newpath
+    
+    
     def backtrack():
         path = []
         curr = [end[0], end[1]]
@@ -70,16 +84,4 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
         return backtrack()
     else:
         return []
-    def vvs:
-        newpath = [path[0]]
-        for elem in path[1:len(path)]:
-            for g in getNeighbours(matrix[elem[0]][elem[1]]):
-                if int(round(matrix[g[0]][g[1]])) == 3:
-                    counter += 1
-                    continue
-                else:
-                    continue
-            if counter >= 4:
-                newpath.append(elem)
-            newpath.append(path[-1])
-        return newpath
+    
