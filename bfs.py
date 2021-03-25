@@ -60,6 +60,18 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
                 return True
             elif rollie(7) == rollie(4) == rollie(6):
                 return True
+        if rollie(1) == 3:
+             if rollie(0) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+                return True 
+        if rollie(3) == 3:
+             if rollie(0) == rollie(1) == rollie(2) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+                return True
+        if rollie(4) == 3:
+             if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(5) == rollie(6) == rollie(7):
+                return True
+        if rollie(6) == 3:
+             if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(7):
+                return True   
         return False           
     
     def vvs(path):
