@@ -35,21 +35,43 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
                 if test_node != node and valid(test_node) and matrix[test_node[0]][test_node[1]] != not_neighbour_cond and visited[test_node[0]][test_node[1]] == 0:
                     neighbours.append(test_node)
         return neighbours
-
+    
+    def diamonds(z):
+        chainz = getNeighbours(z)
+        def rollie(n):
+            return int(round(self.occdata[chainz[n][0]][chainz[n][1]]))        
+        if rollie(0) == 3:
+            if rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+                return True
+            elif rollie(0) == rollie(1) == rollie(3):
+                return True
+        if rollie(2) == 3:
+            if rollie(0) == rollie(1) == rollie(3) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+                return True
+            if rollie(2) == rollie(1) == rollie(4):
+                return True
+        if rollie(5) == 3:
+            if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(6) == rollie(7):
+                return True
+            elif rollie(5) == rollie(3) == rollie(6):
+                return True
+        if rollie(7) == 3:
+             if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(6):
+                return True
+            elif rollie(7) == rollie(4) == rollie(6):
+                return True
+        return False           
+    
     def vvs(path):
         newpath = [path[0]]
         for elem in path[1:len(path)]:
-            for g in getNeighbours(matrix[elem[0]][elem[1]]):
-                if int(round(matrix[g[0]][g[1]])) == 3:
-                    counter += 1
-                    continue
-                else:
-                    continue
-            if counter >= 4:
+            if diamonds(elem) == True:
                 newpath.append(elem)
-            newpath.append(path[-1])
+                continue
+            else:
+                continue                
+        newpath.append(path[-1])
         return newpath
-    
     
     def backtrack():
         path = []
