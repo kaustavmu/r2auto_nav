@@ -148,12 +148,6 @@ class AutoNav(Node):
         grid_y = round(((cur_pos.y - map_origin.y) / map_res))
 
         self.occdata[grid_y][grid_x] = 0
-	
-        for i in self.occdata:
-            for elem in i:
-                elem = int(round(elem))
-                print(elem)
-	
 
         # print to file
         np.savetxt(mapfile, self.occdata)
@@ -300,7 +294,8 @@ class AutoNav(Node):
                 return False
 
             def vvs(path):
-                newpath = [path[0]]
+                newpath = []
+                newpath.append(path[0])
                 for elem in path[1:len(path)]:
                     if diamonds(elem) == True:
                         newpath.append(elem)
@@ -342,7 +337,8 @@ class AutoNav(Node):
             if end != None:
                 return backtrack()
             else:
-                return []       
+                newpath = []
+		return newpath
          # self.get_logger().info('In pick_direction')
         #if self.laser_range.size != 0:
             # use nanargmax as there are nan's in laser_range added to replace 0's
