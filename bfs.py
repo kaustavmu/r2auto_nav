@@ -38,39 +38,40 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
     
     def diamonds(z):
         chainz = getNeighbours(z)
-        def rollie(n):
-            return int(round(self.occdata[chainz[n][0]][chainz[n][1]]))        
-        if rollie(0) == 3:
-            if rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+        rollie = []
+        for c in chainz:
+            rollie.append(int(round(self.occdata[c[0]][c[1]])))        
+        if rollie[0] == 3:
+            if rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
                 return True
-            elif rollie(0) == rollie(1) == rollie(3):
+            elif rollie[0] == rollie[1] == rollie[3]:
                 return True
-        if rollie(2) == 3:
-            if rollie(0) == rollie(1) == rollie(3) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+        if rollie[2] == 3:
+            if rollie[0] == rollie[1] == rollie[3] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
                 return True
-            if rollie(2) == rollie(1) == rollie(4):
+            if rollie[2] == rollie[1] == rollie[4]:
                 return True
-        if rollie(5) == 3:
-            if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(6) == rollie(7):
+        if rollie[5] == 3:
+            if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[6] == rollie[7]:
                 return True
-            elif rollie(5) == rollie(3) == rollie(6):
+            elif rollie[5] == rollie[3] == rollie[6]:
                 return True
-        if rollie(7) == 3:
-             if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(6):
+        if rollie[7] == 3:
+             if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[6]:
                 return True
-            elif rollie(7) == rollie(4) == rollie(6):
+            elif rollie[7] == rollie[4] == rollie[6]:
                 return True
-        if rollie(1) == 3:
-             if rollie(0) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+        if rollie[1] == 3:
+             if rollie[0] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
                 return True 
-        if rollie(3) == 3:
-             if rollie(0) == rollie(1) == rollie(2) == rollie(4) == rollie(5) == rollie(6) == rollie(7):
+        if rollie[3] == 3:
+             if rollie[0] == rollie[1] == rollie[2] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
                 return True
-        if rollie(4) == 3:
-             if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(5) == rollie(6) == rollie(7):
+        if rollie[4] == 3:
+             if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[5] == rollie[6] == rollie[7]:
                 return True
-        if rollie(6) == 3:
-             if rollie(0) == rollie(1) == rollie(2) == rollie(3) == rollie(4) == rollie(5) == rollie(7):
+        if rollie[6] == 3:
+             if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[7]:
                 return True   
         return False           
     
