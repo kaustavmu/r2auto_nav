@@ -26,6 +26,7 @@ import time
 import scipy.stats
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
+from queue import Queue
 
 
 # constants
@@ -147,7 +148,12 @@ class AutoNav(Node):
         grid_y = round(((cur_pos.y - map_origin.y) / map_res))
 
         self.occdata[grid_y][grid_x] = 0
-
+	
+        for i in self.occdata:
+            for elem in i:
+                elem = int(round(elem))
+                print(elem)
+	
 
         # print to file
         np.savetxt(mapfile, self.occdata)
@@ -218,27 +224,165 @@ class AutoNav(Node):
 
 
     def pick_direction(self):
-        # self.get_logger().info('In pick_direction')
-        if self.laser_range.size != 0:
+       
+        def bfs(matrix, start, end_cond, not_neighbour_cond):
+            row = len(matrix)
+            col = len(matrix[0])
+            visited = np.empty((row, col))
+            for i in range(row):
+                for j in range(col):
+                    visited[i][j] = 0
+            parent = np.empty((row, col, 2))
+            for i in range(row):
+                for j in range(col):
+                    for k in range(2):
+                        parent[i][j][k] = -1
+            queue = Queue(row * col)
+            end = None
+            
+            def valid(node):
+                return node[0] >= 0 and node[0] < row and node[1] >= 0 and node[1] < col
+
+            def getNeighbours(node):
+                neighbours = []
+                #top_left = (node[0]-1, node[1]-1)
+                #top = (node[0]-1, node[1])
+                #top_right = (node[0]-1, node[1]+1)
+                #left = (node[0], node[1]-1)
+                #right = (node[0], node[1]+1)
+                #botton_left = (node[0]+1, node[1]-1)
+                #bottom = (node[0]+1, node[1])
+                #bottom_right = (node[0]+1, node[1]+1)
+                for i in range(-1, 2):
+                    for j in range(-1, 2):
+                        test_node = [node[0]+i, node[1]+j]
+                        if test_node != node and valid(test_node) and matrix[test_node[0]][test_node[1]] != not_neighbour_cond and visited[test_node[0]][test_node[1]] == 0:
+                            neighbours.append(test_node)
+                return neighbours
+
+            def diamonds(z):
+                chainz = getNeighbours(z)
+                rollie = []
+                for c in chainz:
+                    rollie.append(int(round(self.occdata[c[0]][c[1]])))        
+                if rollie[0] == 3:
+                    if rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
+                        return True
+                    elif rollie[0] == rollie[1] == rollie[3]:
+                        return True
+                if rollie[2] == 3:
+                    if rollie[0] == rollie[1] == rollie[3] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
+                        return True
+                    if rollie[2] == rollie[1] == rollie[4]:
+                        return True
+                if rollie[5] == 3:
+                    if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[6] == rollie[7]:
+                        return True
+                    elif rollie[5] == rollie[3] == rollie[6]:
+                        return True
+                if rollie[7] == 3:
+                    if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[6]:
+                        return True
+                    elif rollie[7] == rollie[4] == rollie[6]:
+                        return True
+                if rollie[1] == 3:
+                    if rollie[0] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
+                        return True 
+                if rollie[3] == 3:
+                    if rollie[0] == rollie[1] == rollie[2] == rollie[4] == rollie[5] == rollie[6] == rollie[7]:
+                        return True
+                if rollie[4] == 3:
+                    if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[5] == rollie[6] == rollie[7]:
+                        return True
+                if rollie[6] == 3:
+                    if rollie[0] == rollie[1] == rollie[2] == rollie[3] == rollie[4] == rollie[5] == rollie[7]:
+                        return True   
+                return False
+
+            def vvs(path):
+                newpath = [path[0]]
+                for elem in path[1:len(path)]:
+                    if diamonds(elem) == True:
+                        newpath.append(elem)
+                        continue
+                    else:
+                        continue                
+                newpath.append(path[-1])
+                return newpath
+
+            def backtrack():
+                path = []
+                curr = [end[0], end[1]]
+                while curr[0]!= -2.0 and curr[1] != -2.0:
+                    path.append(curr)
+                    par = [parent[int(curr[0])][int(curr[1])][0], parent[int(curr[0])][int(curr[1])][1]]
+                    curr = par
+                return vvs(path)
+
+            if start[0] < 0 or start[1] < 0 or start[0] >= row or start[1] >= col:
+                return []
+
+            visited[start[0]][start[1]] = 1
+            parent[start[0]][start[1]] = [-2, -2]
+            queue.put(start)
+
+            while not queue.empty():
+                curr = queue.get()
+      
+                if matrix[curr[0]][curr[1]] == end_cond:
+                    end = curr
+                    break
+
+                neighbours = getNeighbours(curr)
+                for i in range(len(neighbours)):
+                    visited[neighbours[i][0]][neighbours[i][1]] = 1
+                    parent[neighbours[i][0]][neighbours[i][1]] = curr
+                    queue.put(neighbours[i])
+
+            if end != None:
+                return backtrack()
+            else:
+                return []       
+         # self.get_logger().info('In pick_direction')
+        #if self.laser_range.size != 0:
             # use nanargmax as there are nan's in laser_range added to replace 0's
-            lr2i = np.nanargmax(self.laser_range)
-            self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
-        else:
-            lr2i = 0
-            self.get_logger().info('No data!')
-
-        # rotate to that direction
-        self.rotatebot(float(lr2i))
-
-        # start moving
-        self.get_logger().info('Start moving')
-        twist = Twist()
-        twist.linear.x = speedchange
-        twist.angular.z = 0.0
-        # not sure if this is really necessary, but things seem to work more
-        # reliably with this
-        time.sleep(1)
-        self.publisher_.publish(twist)
+            #lr2i = np.nanargmax(self.laser_range)
+            #self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
+        #else:
+            #lr2i = 0
+            #self.get_logger().info('No data!')
+        for h in range(len(newpath)-1):
+            # rotate to that direction
+            q,w,e,r = newpath[h][0],newpath[h][1],newpath[h+1][0],newpath[h+1][1]
+            if r - w == 0:
+                if (e-q) > 0:
+                    t = 3*(math.pi)/4
+                elif (e-q) < 0:
+                    t = (math.pi)/4
+            else:
+                t = math.atan((e-q)/(r-w))
+                if (e-q) < 0:
+                    if t > 0:
+                        t = math.pi - t
+                    elif t < 0:
+                        t = -t
+                elif (e-q) > 0:
+                    if t > 0:
+                        t = math.pi + t
+                elif (e-q) == 0 and (r-w) < 0:
+                    t = math.pi
+            self.rotatebot(float(t))
+            # start moving
+            self.get_logger().info('Start moving')
+            twist = Twist()
+            twist.linear.x = speedchange
+            twist.angular.z = 0.0
+            # not sure if this is really necessary, but things seem to work more
+            # reliably with this
+            time.sleep(1)
+            self.publisher_.publish(twist)
+	
+	
 
 
     def stopbot(self):
