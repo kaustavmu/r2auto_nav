@@ -129,6 +129,7 @@ class AutoNav(Node):
         # self.occdata = np.uint8(oc2.reshape(msg.info.height,msg.info.width,order='F'))
         self.occdata = np.uint8(msgdata.reshape(msg.info.height,msg.info.width))
 
+        #Transforms the data to get the position of Turtlebot
         try:
             trans = self.tfBuffer.lookup_transform('map', 'base_link', rclpy.time.Time())
              #*********LOOK LATER*********
@@ -148,7 +149,7 @@ class AutoNav(Node):
         grid_y = round(((cur_pos.y - map_origin.y) / map_res))
 
         self.occdata[grid_y][grid_x] = 0
-
+	
         # print to file
         np.savetxt(mapfile, self.occdata)
 
@@ -219,6 +220,7 @@ class AutoNav(Node):
 
     def pick_direction(self):
        
+        #The grand bfs coded by Xin Yi and optimized by yours Truly. This uses a queue to chec possible travel nodes given their equal weight in the map.
         def bfs(matrix, start, end_cond, not_neighbour_cond):
             row = len(matrix)
             col = len(matrix[0])
@@ -234,9 +236,12 @@ class AutoNav(Node):
             queue = Queue(row * col)
             end = None
             
+            #Function to check validity of node, to be considered for pathwaymaking
             def valid(node):
                 return node[0] >= 0 and node[0] < row and node[1] >= 0 and node[1] < col
 
+
+            #Function to get neighbours. Made a small adjustment to the end_cond line where is used np.round to round the result to end_condition
             def getNeighbours(node):
                 neighbours = []
                 #top_left = (node[0]-1, node[1]-1)
@@ -250,10 +255,12 @@ class AutoNav(Node):
                 for i in range(-1, 2):
                     for j in range(-1, 2):
                         test_node = [node[0]+i, node[1]+j]
-                        if test_node != node and valid(test_node) and matrix[test_node[0]][test_node[1]] != not_neighbour_cond and visited[test_node[0]][test_node[1]] == 0:
+                        if test_node != node and valid(test_node) and np.round(matrix[test_node[0]][test_node[1]]) != not_neighbour_cond and visited[test_node[0]][test_node[1]] == 0:
                             neighbours.append(test_node)
                 return neighbours
 
+
+            #Hardcoded possibilities for the neighbours being in certain conformations. Trust me on this bit for now :)
             def diamonds(z):
                 chainz = getNeighbours(z)
                 rollie = []
@@ -293,6 +300,8 @@ class AutoNav(Node):
                         return True   
                 return False
 
+
+            #This is the path shortener which shortens output to just vertices for ease of computation!
             def vvs(path):
                 newpath = []
                 newpath.append(path[0])
@@ -305,6 +314,7 @@ class AutoNav(Node):
                 newpath.append(path[-1])
                 return newpath
 
+            #This function backtracks to find parent nodes until you reach the start, before reversing the path to get a path from start to end.
             def backtrack():
                 path = []
                 curr = [end[0], end[1]]
@@ -312,34 +322,51 @@ class AutoNav(Node):
                     path.append(curr)
                     par = [parent[int(curr[0])][int(curr[1])][0], parent[int(curr[0])][int(curr[1])][1]]
                     curr = par
+                path.reverse() 
                 return vvs(path)
 
+            #Returns empty path upon invalid start point
             if start[0] < 0 or start[1] < 0 or start[0] >= row or start[1] >= col:
                 return []
 
+            #Prepares queue for iteration
             visited[start[0]][start[1]] = 1
             parent[start[0]][start[1]] = [-2, -2]
             queue.put(start)
 
+            #Okay, it realy starts here. Queue iterations begins 
             while not queue.empty():
                 curr = queue.get()
       
-                if matrix[curr[0]][curr[1]] == end_cond:
+                #Modified line with np.round so I can use a simpler end_cond
+                if np.round(matrix[curr[0]][curr[1]]) == end_cond:
                     end = curr
                     break
 
+                #Updates visited neighbours and continues the serach for the next node in the queue
                 neighbours = getNeighbours(curr)
                 for i in range(len(neighbours)):
                     visited[neighbours[i][0]][neighbours[i][1]] = 1
                     parent[neighbours[i][0]][neighbours[i][1]] = curr
                     queue.put(neighbours[i])
 
+            #Returns a valid path if the end condition is satified by a known node.
             if end != None:
                 return backtrack()
+            #Returns no path otherwise
             else:
                 newpath = []
-		return newpath
-         # self.get_logger().info('In pick_direction')
+                return newpath       
+         
+        #This bit is to get the current position of turtlebot in array(this is a numpy.ndarray)
+        #Double-check bfs arguments to see if they are correct
+        x = np.where(np.round(self.occdata) == 0.0)
+        racks = np.asarray(x).T.tolist
+        greens = bfs(self.occdata,[racks[0][0],racks[0][1]],-1.0,1.0 or -1.0)
+    
+
+
+        # self.get_logger().info('In pick_direction')
         #if self.laser_range.size != 0:
             # use nanargmax as there are nan's in laser_range added to replace 0's
             #lr2i = np.nanargmax(self.laser_range)
@@ -347,9 +374,11 @@ class AutoNav(Node):
         #else:
             #lr2i = 0
             #self.get_logger().info('No data!')
-        for h in range(len(newpath)-1):
+
+        #Functions below talk about t, the rotating angle. t values assume that rotation is clockwise and in radians.
+        for h in range(len(greens)-1):
             # rotate to that direction
-            q,w,e,r = newpath[h][0],newpath[h][1],newpath[h+1][0],newpath[h+1][1]
+            q,w,e,r = racks[0][0],racks[0][1],newpath[h+1][0],newpath[h+1][1]
             if r - w == 0:
                 if (e-q) > 0:
                     t = 3*(math.pi)/4
@@ -368,6 +397,7 @@ class AutoNav(Node):
                 elif (e-q) == 0 and (r-w) < 0:
                     t = math.pi
             self.rotatebot(float(t))
+
             # start moving
             self.get_logger().info('Start moving')
             twist = Twist()
@@ -377,7 +407,14 @@ class AutoNav(Node):
             # reliably with this
             time.sleep(1)
             self.publisher_.publish(twist)
-	
+
+            #Conditional iteration to check for robot being in position at vertex
+            while racks[0][0] != e and racks[0][1] != r:
+                continue
+            else:
+                self.stopbot()
+            continue
+            #wanted to put a function to break the loop is robot is too far, but not sure how.
 	
 
 
@@ -399,7 +436,6 @@ class AutoNav(Node):
             # find direction with the largest distance from the Lidar,
             # rotate to that direction, and start moving
             self.pick_direction()
-
             while rclpy.ok():
                 if self.laser_range.size != 0:
                     # check distances in front of TurtleBot and find values less
