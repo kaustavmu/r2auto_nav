@@ -29,7 +29,7 @@ import scipy.stats
 from queue import Queue
 
 # constants
-rotatechange = 0.1
+rotatechange = 0.07
 speedchange = 0.05
 occ_bins = [-1, 0, 51, 100]
 stop_distance = 0.25
@@ -120,29 +120,12 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
         for potential_neighbour in potential_neighbours:
             if valid(potential_neighbour) and matrix[potential_neighbour[0]][potential_neighbour[1]] != not_neighbour_cond and visited[potential_neighbour[0]][potential_neighbour[1]] == 0:
                 neighbours.append(potential_neighbour)
-        #if valid(left) and matrix[left[0]][left[1]] != not_neighbour_cond and visited[left[0]][left[1]] == 0:
-        #    neighbours.append(left)
-        #if valid(right) and matrix[right[0]][right[1]] != not_neighbour_cond and visited[right[0]][right[1]] == 0:
-        #    neighbours.append(right)
-        #if valid(top) and matrix[top[0]][top[1]] != not_neighbour_cond and visited[top[0]][top[1]] == 0:
-        #    neighbours.append(top)
-        #if valid(bottom) and matrix[bottom[0]][bottom[1]] != not_neighbour_cond and visited[bottom[0]][bottom[1]] == 0:
-        #    neighbours.append(bottom)
-        #for i in range(-1, 2):
-        #    for j in range(-1, 2):
-        #        test_node = [node[0]+i, node[1]+j]
-        #        if test_node != node and valid(test_node) and matrix[test_node[0]][test_node[1]] != not_neighbour_cond and visited[test_node[0]][test_node[1]] == 0:
-        #            neighbours.append(test_node)
         return neighbours
 
 
     def backtrack():
         path = []
         curr = [end[0], end[1]]
-        #while curr[0]!= -2.0 and curr[1] != -2.0:
-        #    path.append(curr)
-        #    par = [parent[int(curr[0])][int(curr[1])][0], parent[int(curr[0])][int(curr[1])][1]]
-        #    curr = par
         while curr[0]!= -2 and curr[1] != -2:
             path.append(curr)
             par = [parent[curr[0]][curr[1]][0], parent[curr[0]][curr[1]][1]]
@@ -175,100 +158,43 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
         return []
 
 
-#def cal_angle(start, end, default_angle=0):
-#    delta_x = end[1] - start[1]
-#    delta_y = end[0] - start[0]
-#    if delta_x > 0 and delta_y > 0:
-#        return math.degrees(math.atan(delta_y / delta_x)) - default_angle
-#    elif delta_x > 0 and delta_y < 0:
-#        return math.degrees(math.atan(delta_y / delta_x)) + 90 - default_angle
-#    elif delta_x < 0 and delta_y < 0:
-#        return math.degrees(math.atan(delta_y / delta_x)) + 180 - default_angle
-#    elif delta_x < 0 and delta_y > 0:
-#        return math.degrees(math.atan(delta_y / delta_x)) + 270 - default_angle
-#    elif delta_x == 0 and delta_y > 0:
-#        return 90 - default_angle
-#    elif delta_x == 0 and delta_y < 0:
-#        return 270 - default_angle
-#    elif delta_x > 0 and delta_y == 0:
-#        return 0 - default_angle
-#    elif delta_x > 0 and delta_y == 0:
-#        return 180 - default_angle
-#    else:
-#        return 0 - default_angle
-
-
-#def cal_angle(start, end, def_angle=0):
-#    delta_x = end[0] - start[0]
-#    delta_y = end[1] - start[1]
-
-#    if def_angle < 0:
-#        default_angle = 360 + def_angle
-#    else:
-#        default_angle = def_angle
-
-#    if delta_x > 0 and delta_y > 0:
-#        return math.degrees(math.atan(delta_y / delta_x)) - 90 - default_angle + 90
-#    elif delta_x > 0 and delta_y < 0:
-#        return math.degrees(math.atan(delta_y / delta_x)) + 90 - 90 - default_angle + 90
-#    elif delta_x < 0 and delta_y < 0:
-        #return math.degrees(math.atan(delta_y / delta_x)) + 180 - 90 - default_angle + 90
-#        return -(math.degrees(math.atan(delta_y / delta_x)) + 180) + default_angle 
-#    elif delta_x < 0 and delta_y > 0:
-#        return math.degrees(math.atan(delta_y / delta_x)) + 270 - 90 - default_angle + 90
-#    elif delta_x == 0 and delta_y > 0:
-        #return 90 - 90 - default_angle + 90
-#        return 90 - default_angle + 90
-#    elif delta_x == 0 and delta_y < 0:
-        #return 270 - 90 - default_angle + 90
-#        return 180 - 90 - default_angle + 90
-#    elif delta_x > 0 and delta_y == 0:
-        #return 0 - 90 - default_angle + 90
-#        return -90 - 90 - default_angle + 90
-#    elif delta_x < 0 and delta_y == 0:
-        #return 180 - 90 - default_angle + 90
-#        return 90 - 90 - default_angle + 90
-#    else:
-        #return 0 - 90 - default_angle + 90
-#        return 0
-        
-
 def cal_angle(start, end, def_angle=0):
-    delta_x = end[0] - start[0]
-    delta_y = end[1] - start[1]
+    delta_x = end[1] - start[1]
+    delta_y = end[0] - start[0]
 
     if def_angle < 0:
         default_angle = 360 + def_angle
     else:
         default_angle = def_angle
-    #default_angle = def_angle
 
+    # first quadrant
     if delta_x > 0 and delta_y > 0:
-        #return -math.degrees(math.atan(delta_y / delta_x)) - default_angle 
-        return default_angle - math.degrees(math.atan(delta_y / delta_x)) 
+        return math.degrees(math.atan(delta_y / delta_x)) - default_angle
+    # fourth quadrant
     elif delta_x > 0 and delta_y < 0:
-        #return math.degrees(math.atan(delta_y / delta_x)) - 180 - default_angle
-        return default_angle - (180 - math.degrees(math.atan(delta_y / delta_x)))
+        return 360 - math.degrees(math.atan(delta_y / delta_x)) - default_angle
+    # thrid quadrant
     elif delta_x < 0 and delta_y < 0:
-        #return math.degrees(math.atan(delta_y / delta_x)) - 90 - default_angle 
-        return default_angle - (180 + math.degrees(math.atan(delta_y / delta_x)))
+        return 180 + math.degrees(math.atan(delta_y / delta_x)) - default_angle 
+    # second quadrant
     elif delta_x < 0 and delta_y > 0:
-        #return math.degrees(math.atan(delta_y / delta_x)) + 90 - default_angle
-        return default_angle - (360 - math.degrees(math.atan(delta_y / delta_x)))
+        return 180 - math.degrees(math.atan(delta_y / delta_x)) - default_angle 
+    # up
     elif delta_x == 0 and delta_y > 0:
-        #return 0 - default_angle
-        return -90 - default_angle
-    elif delta_x == 0 and delta_y < 0:
         return 90 - default_angle
+    # down
+    elif delta_x == 0 and delta_y < 0:
+        return 270 - default_angle
+    # right
     elif delta_x > 0 and delta_y == 0:
-        #return 90 - default_angle
-        return -default_angle
+        return 0 - default_angle
+    # left
     elif delta_x < 0 and delta_y == 0:
-        #return -90 - default_angle 
-        return -180 - default_angle 
+        return 180 - default_angle 
+    # do not change
     else:
         return 0
-
+        
 
 def shorter_path(path):
     if len(path) <= 2:
@@ -513,7 +439,7 @@ class AutoNav(Node):
 
     def pick_direction(self):
         self.get_logger().info('In pick_direction')
-        if self.grid_x == -1 and self.grid_y == -1:
+        if self.grid_x == -1 or self.grid_y == -1:
             if self.laser_range.size != 0:
                 # use nanargmax as there are nan's in laser_range added to replace 0's
                 lr2i = np.nanargmax(self.laser_range)
@@ -558,11 +484,11 @@ class AutoNav(Node):
         
             curr_point = short_path[0]
             for point in short_path[1:]:
-                #angle = cal_angle(curr_point, point, math.degrees(self.yaw))
-                angle = cal_angle([curr_point[1], curr_point[0]], [point[1], point[0]], math.degrees(self.yaw))
+                angle = cal_angle(curr_point, point, math.degrees(self.yaw))
+                #angle = cal_angle([curr_point[1], curr_point[0]], [point[1], point[0]], math.degrees(self.yaw))
                 #angle = cal_angle(curr_point, point)
-                self.get_logger().info('start point: %i, %i' % (curr_point[1], curr_point[0]))
-                self.get_logger().info('end point: %i, %i' % (point[1], point[0]))
+                self.get_logger().info('start point: %i, %i' % (curr_point[0], curr_point[1]))
+                self.get_logger().info('end point: %i, %i' % (point[0], point[1]))
                 self.get_logger().info('current direction: %i' % self.yaw)
                 self.get_logger().info('rotation required: %i' % angle)
                 self.rotatebot(angle) 
@@ -647,8 +573,8 @@ def main(args=None):
 
     auto_nav = AutoNav()
     #auto_nav.rotatebot(1)
-    #auto_nav.rotatebot(180)
-    #auto_nav.rotatebot(180)
+    #auto_nav.rotatebot(90)
+    #auto_nav.rotatebot(-45)
     auto_nav.mover()
 
     # create matplotlib figure
