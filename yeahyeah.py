@@ -85,6 +85,8 @@ class AutoNav(Node):
         self.yaw = 0
         self.tfBuffer = tf2_ros.Buffer()
         self.tfListener = tf2_ros.TransformListener(self.tfBuffer, self)
+	self.grid_x = 0
+	self.grid_y = 0
 
         
         # create subscription to track occupancy
@@ -362,7 +364,7 @@ class AutoNav(Node):
         #Double-check bfs arguments to see if they are correct
         x = np.where(np.round(self.occdata) == 0.0)
         racks = np.asarray(x).T.tolist
-        greens = bfs(self.occdata,[racks[0][0],racks[0][1]],-1.0,1.0 or -1.0)
+        greens = bfs(self.occdata,[racks[0][0],racks[0][1]],-1.0,1.0)
     
 
 
@@ -378,10 +380,10 @@ class AutoNav(Node):
         #Functions below talk about t, the rotating angle. t values assume that rotation is clockwise and in radians.
         for h in range(len(greens)-1):
             # rotate to that direction
-            q,w,e,r = racks[0][0],racks[0][1],newpath[h+1][0],newpath[h+1][1]
+            q,w,e,r = racks[0][0],racks[0][1],greens[h+1][0],greens[h+1][1]
             if r - w == 0:
                 if (e-q) > 0:
-                    t = 3*(math.pi)/4
+                    t = 3*(math.pi)/2
                 elif (e-q) < 0:
                     t = (math.pi)/4
             else:
