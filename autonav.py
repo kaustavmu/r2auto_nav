@@ -29,7 +29,7 @@ import scipy.stats
 from queue import Queue
 
 # constants
-rotatechange = 0.07
+rotatechange = 0.1
 speedchange = 0.05
 occ_bins = [-1, 0, 51, 100]
 stop_distance = 0.25
@@ -161,47 +161,110 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
 def cal_angle(start, end, def_angle=0):
     delta_x = end[1] - start[1]
     delta_y = end[0] - start[0]
+    #self.get_logger().info('delta_x: %i' % delta_x)
+    #self.get_logger().info('delta_y: %i' % delta_y)
+    #print('delta_x: ')
+    #print(delta_x)
+    #print('delta_y: ')
+    #print(delta_y)
 
     if def_angle < 0:
         default_angle = 360 + def_angle
     else:
         default_angle = def_angle
+    #self.get_logger().info('default_angle: %f' % default_angle)
+    print('default_angle: ')
+    print(default_angle)
 
     # first quadrant
     if delta_x > 0 and delta_y > 0:
-        lambo = math.degrees(math.atan(delta_y / delta_x))
+        print('first quadrant')
+        return (math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1
+        #return math.degrees(math.atan(delta_y / delta_x)) + default_angle
     # fourth quadrant
     elif delta_x > 0 and delta_y < 0:
-        lambo = 360 - math.degrees(math.atan(delta_y / delta_x)) 
+        print('fourth quadrant')
+        return (360 - math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1
+        #return 360 - math.degrees(math.atan(delta_y / delta_x)) + default_angle
     # thrid quadrant
     elif delta_x < 0 and delta_y < 0:
-        lambo = 180 + math.degrees(math.atan(delta_y / delta_x)) 
+        print('third quadrant')
+        return (180 + math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1 
+        #return 180 + math.degrees(math.atan(delta_y / delta_x)) + default_angle 
     # second quadrant
     elif delta_x < 0 and delta_y > 0:
-        lambo = 180 - math.degrees(math.atan(delta_y / delta_x))  
+        print('second quadrant')
+        return (180 - math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1 
+        #return 180 - math.degrees(math.atan(delta_y / delta_x)) + default_angle 
     # up
     elif delta_x == 0 and delta_y > 0:
-        lambo = 90 
+        print('up')
+        return (90 - default_angle) * -1
+        #return 90 + default_angle
     # down
     elif delta_x == 0 and delta_y < 0:
-        lambo = 270 
+        print('down')
+        return (270 - default_angle) * -1
+        #return 270 + default_angle
     # right
     elif delta_x > 0 and delta_y == 0:
-        lambo = 0 
+        print('right')
+        return (0 - default_angle) * -1
+        #return 0 + default_angle
     # left
     elif delta_x < 0 and delta_y == 0:
-        lambo = 180  
+        print('left')
+        return (180 - default_angle) * -1 
+        #return 180 + default_angle 
     # do not change
     else:
-        lambo = 0
-    print(lambo)
-    if lambo > default_angle:
-        return lambo - default_angle
-    elif lambo < default_angle:
-        return default angle- lambo
-    else return 0
-        
-        
+        return 0
+
+
+#def cal_angle(start, end, def_angle=0):
+#     delta_x = end[1] - start[1]
+#     delta_y = end[0] - start[0]
+
+#     if def_angle < 0:
+#          default_angle = 360 + def_angle
+#     else:
+#          default_angle = def_angle
+
+     # first quadrant
+#     if delta_x > 0 and delta_y > 0:
+#         lambo = math.degrees(math.atan(delta_y / delta_x))
+     # fourth quadrant
+#     elif delta_x > 0 and delta_y < 0:
+#         lambo = 360 - math.degrees(math.atan(delta_y / delta_x)) 
+     # thrid quadrant
+#     elif delta_x < 0 and delta_y < 0:
+#         lambo = 180 + math.degrees(math.atan(delta_y / delta_x)) 
+     # second quadrant
+#     elif delta_x < 0 and delta_y > 0:
+#         lambo = 180 - math.degrees(math.atan(delta_y / delta_x))  
+     # up
+#     elif delta_x == 0 and delta_y > 0:
+#         lambo = 90 
+     # down
+#     elif delta_x == 0 and delta_y < 0:
+#         lambo = 270 
+     # right
+#     elif delta_x > 0 and delta_y == 0:
+#         lambo = 0 
+     # left
+#     elif delta_x < 0 and delta_y == 0:
+#         lambo = 180  
+     # do not change
+#     else:
+#         lambo = 0
+#     print(lambo)
+#     if lambo > default_angle:
+#         return -lambo + default_angle
+#     elif lambo < default_angle:
+#         return default_angle - lambo
+#     else:
+#         return 0       
+
 
 def shorter_path(path):
     if len(path) <= 2:
@@ -312,8 +375,8 @@ class AutoNav(Node):
             for j in range(len(self.encoded_msgdata[0])):
                 if self.occdata[i][j] == occupied:
                     node = [i, j]
-                    for k in range(-4, 5):
-                        for l in range(-4, 5):
+                    for k in range(-3, 4):
+                        for l in range(-3, 4):
                             test_node = [i+k, j+l]
                             if test_node != node and valid(test_node, self.encoded_msgdata):
                                 self.encoded_msgdata[test_node[0]][test_node[1]] = occupied
@@ -410,7 +473,7 @@ class AutoNav(Node):
         c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
         c_change_dir = np.sign(c_change.imag)
-        self.get_logger().info('c_change_dir: %i' % c_change_dir)
+        #self.get_logger().info('c_change_dir: %i' % c_change_dir)
         # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
         # set the direction to rotate
@@ -436,7 +499,7 @@ class AutoNav(Node):
             c_dir_diff = np.sign(c_change.imag)
             # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
-        self.get_logger().info('c_dir_diff: %i' % c_dir_diff)
+        #self.get_logger().info('c_dir_diff: %i' % c_dir_diff)
         self.get_logger().info('End Yaw: %f degree' % math.degrees(current_yaw))
         # set the rotation speed to 0
         twist.angular.z = 0.0
@@ -470,6 +533,9 @@ class AutoNav(Node):
 
         if self.grid_x != -1 and self.grid_y != -1:
             path = bfs(self.encoded_msgdata, [self.grid_x, self.grid_y], 1, 3)
+            if len(path) == 0:
+                self.get_logger().info('Fully mapped!')
+                self.stopbot()
             short_path = shorter_path(path)
 
             for points in short_path:
@@ -494,8 +560,8 @@ class AutoNav(Node):
                 angle = cal_angle(curr_point, point, math.degrees(self.yaw))
                 #angle = cal_angle([curr_point[1], curr_point[0]], [point[1], point[0]], math.degrees(self.yaw))
                 #angle = cal_angle(curr_point, point)
-                self.get_logger().info('start point: %i, %i' % (curr_point[0], curr_point[1]))
-                self.get_logger().info('end point: %i, %i' % (point[0], point[1]))
+                #self.get_logger().info('start point: %i, %i' % (curr_point[0], curr_point[1]))
+                #self.get_logger().info('end point: %i, %i' % (point[0], point[1]))
                 self.get_logger().info('current direction: %i' % self.yaw)
                 self.get_logger().info('rotation required: %i' % angle)
                 self.rotatebot(angle) 
@@ -517,11 +583,19 @@ class AutoNav(Node):
                 np.savetxt('good_enuf_pos.txt', good_enuf_pos)
 
                 #while self.cur_pos != point:
-                while [self.grid_x, self.grid_y] not in good_enuf_pos:
+                #while [self.grid_x, self.grid_y] not in good_enuf_pos:
+                #    rclpy.spin_once(self)
+                    #self.get_logger().info('current position: %i, %i' % (self.grid_x, self.grid_y))
+                    #self.get_logger().info('desired position: %i, %i' % (point[0], point[1]))
+                    #self.get_logger().info('rotating')
+                #    continue
+
+                distance_squared = (curr_point[0] - point[0]) ** 2 + (curr_point[1] - point[1]) ** 2 
+                self.get_logger().info('distance: %i' % distance_squared)
+                #self.get_logger().info('curr_distance: %f' % ((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2))
+                while ((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2) < distance_squared:
+                    #self.get_logger().info('curr_distance: %f' % ((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2))
                     rclpy.spin_once(self)
-                    self.get_logger().info('current position: %i, %i' % (self.grid_x, self.grid_y))
-                    self.get_logger().info('desired position: %i, %i' % (point[0], point[1]))
-                    self.get_logger().info('rotating')
                     continue
 
                 self.get_logger().info('out of loop coordinate: %i, %i' % (self.grid_x, self.grid_y))
@@ -579,9 +653,6 @@ def main(args=None):
     rclpy.init(args=args)
 
     auto_nav = AutoNav()
-    #auto_nav.rotatebot(1)
-    #auto_nav.rotatebot(90)
-    #auto_nav.rotatebot(-45)
     auto_nav.mover()
 
     # create matplotlib figure
@@ -597,3 +668,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
