@@ -169,31 +169,38 @@ def cal_angle(start, end, def_angle=0):
 
     # first quadrant
     if delta_x > 0 and delta_y > 0:
-        return math.degrees(math.atan(delta_y / delta_x)) - default_angle
+        lambo = math.degrees(math.atan(delta_y / delta_x))
     # fourth quadrant
     elif delta_x > 0 and delta_y < 0:
-        return 360 - math.degrees(math.atan(delta_y / delta_x)) - default_angle
+        lambo = 360 - math.degrees(math.atan(delta_y / delta_x)) 
     # thrid quadrant
     elif delta_x < 0 and delta_y < 0:
-        return 180 + math.degrees(math.atan(delta_y / delta_x)) - default_angle 
+        lambo = 180 + math.degrees(math.atan(delta_y / delta_x)) 
     # second quadrant
     elif delta_x < 0 and delta_y > 0:
-        return 180 - math.degrees(math.atan(delta_y / delta_x)) - default_angle 
+        lambo = 180 - math.degrees(math.atan(delta_y / delta_x))  
     # up
     elif delta_x == 0 and delta_y > 0:
-        return 90 - default_angle
+        lambo = 90 
     # down
     elif delta_x == 0 and delta_y < 0:
-        return 270 - default_angle
+        lambo = 270 
     # right
     elif delta_x > 0 and delta_y == 0:
-        return 0 - default_angle
+        lambo = 0 
     # left
     elif delta_x < 0 and delta_y == 0:
-        return 180 - default_angle 
+        lambo = 180  
     # do not change
     else:
-        return 0
+        lambo = 0
+    print(lambo)
+    if lambo > default_angle:
+        return lambo - default_angle
+    elif lambo < default_angle:
+        return default angle- lambo
+    else return 0
+        
         
 
 def shorter_path(path):
