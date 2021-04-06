@@ -313,8 +313,8 @@ class AutoNav(Node):
             for j in range(len(self.encoded_msgdata[0])):
                 if self.occdata[i][j] == occupied:
                     node = [i, j]
-                    for k in range(-3, 4):
-                        for l in range(-3, 4):
+                    for k in range(-2, 2):
+                        for l in range(-2, 2):
                             test_node = [i+k, j+l]
                             if test_node != node and valid(test_node, self.encoded_msgdata):
                                 self.encoded_msgdata[test_node[0]][test_node[1]] = occupied
