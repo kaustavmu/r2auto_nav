@@ -22,6 +22,7 @@ from nav_msgs.msg import OccupancyGrid
 import tf2_ros
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 import numpy as np
+import matplotlib.pyplot as plt
 import math
 import cmath
 import time
@@ -66,24 +67,23 @@ def euler_from_quaternion(x, y, z, w):
     return roll_x, pitch_y, yaw_z # in radians
 
 
-# a utility method to save value to filename
-def save_to_file(filename, value):
-    f = open(filename, 'w')
-    f.write(repr(value))
+# write text to file
+def write_to_file(file_name, text):
+    f = open(file_name, 'w')
+    f.write(repr(text))
     f.close()
     
 
-def valid(node, matrix):
-    return node[0] >= 0 and node[0] < len(matrix) and node[1] >= 0 and node[1] < len(matrix[0])
+# check if coordinate is valid given matrix
+def valid(coordinate, matrix):
+    return coordinate[0] >= 0 and coordinate[0] < len(matrix) and coordinate[1] >= 0 and coordinate[1] < len(matrix[0])
 
 
+# breath first search
 def bfs(matrix, start, end_cond, not_neighbour_cond):
     row = len(matrix)
     col = len(matrix[0])
     visited = np.zeros((row, col), dtype=int)
-    #for i in range(row):
-    #  for j in range(col):
-    #    visited[i][j] = 0
     parent = np.empty((row, col, 2), dtype=int)
     for i in range(row):
       for j in range(col):
@@ -158,124 +158,71 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
         return []
 
 
-def cal_angle(start, end, def_angle=0):
+# calculate angle between start and end coordinate given initial angle
+def cal_angle(start, end, initial_angle=0):
     delta_x = end[1] - start[1]
     delta_y = end[0] - start[0]
-    #self.get_logger().info('delta_x: %i' % delta_x)
-    #self.get_logger().info('delta_y: %i' % delta_y)
-    #print('delta_x: ')
-    #print(delta_x)
-    #print('delta_y: ')
-    #print(delta_y)
 
-    if def_angle < 0:
-        default_angle = 360 + def_angle
+    if initial_angle < 0:
+        modified_initial_angle = 360 + initial_angle
     else:
-        default_angle = def_angle
-    #self.get_logger().info('default_angle: %f' % default_angle)
-    print('default_angle: ')
-    print(default_angle)
+        modified_initial_angle = initial_angle
 
     # first quadrant
     if delta_x > 0 and delta_y > 0:
-        print('first quadrant')
-        return (math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1
-        #return math.degrees(math.atan(delta_y / delta_x)) + default_angle
+        print('First quadrant')
+        return math.degrees(abs(math.atan(delta_y / delta_x))) - modified_initial_angle
     # fourth quadrant
     elif delta_x > 0 and delta_y < 0:
-        print('fourth quadrant')
-        return (360 - math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1
-        #return 360 - math.degrees(math.atan(delta_y / delta_x)) + default_angle
+        print('Fourth quadrant')
+        return (360 - math.degrees(abs(math.atan(delta_y / delta_x)))) - modified_initial_angle
     # thrid quadrant
     elif delta_x < 0 and delta_y < 0:
-        print('third quadrant')
-        return (180 + math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1 
-        #return 180 + math.degrees(math.atan(delta_y / delta_x)) + default_angle 
+        print('Third quadrant')
+        return (180 + math.degrees(abs(math.atan(delta_y / delta_x)))) - modified_initial_angle 
     # second quadrant
     elif delta_x < 0 and delta_y > 0:
-        print('second quadrant')
-        return (180 - math.degrees(abs(math.atan(delta_y / delta_x))) - default_angle) * -1 
-        #return 180 - math.degrees(math.atan(delta_y / delta_x)) + default_angle 
+        print('Second quadrant')
+        return (180 - math.degrees(abs(math.atan(delta_y / delta_x)))) - modified_initial_angle 
     # up
     elif delta_x == 0 and delta_y > 0:
-        print('up')
-        return (90 - default_angle) * -1
-        #return 90 + default_angle
+        print('Up')
+        return 90 - modified_initial_angle
     # down
     elif delta_x == 0 and delta_y < 0:
-        print('down')
-        return (270 - default_angle) * -1
-        #return 270 + default_angle
-    # right
+        print('Down')
+        return 270 - modified_initial_angle
     elif delta_x > 0 and delta_y == 0:
-        print('right')
-        return (0 - default_angle) * -1
-        #return 0 + default_angle
+        print('Right')
+        return 0 - modified_initial_angle
     # left
     elif delta_x < 0 and delta_y == 0:
-        print('left')
-        return (180 - default_angle) * -1 
-        #return 180 + default_angle 
+        print('Left')
+        return 180 - modified_initial_angle 
     # do not change
     else:
         return 0
 
 
-#def cal_angle(start, end, def_angle=0):
-#     delta_x = end[1] - start[1]
-#     delta_y = end[0] - start[0]
-
-#     if def_angle < 0:
-#          default_angle = 360 + def_angle
-#     else:
-#          default_angle = def_angle
-
-     # first quadrant
-#     if delta_x > 0 and delta_y > 0:
-#         lambo = math.degrees(math.atan(delta_y / delta_x))
-     # fourth quadrant
-#     elif delta_x > 0 and delta_y < 0:
-#         lambo = 360 - math.degrees(math.atan(delta_y / delta_x)) 
-     # thrid quadrant
-#     elif delta_x < 0 and delta_y < 0:
-#         lambo = 180 + math.degrees(math.atan(delta_y / delta_x)) 
-     # second quadrant
-#     elif delta_x < 0 and delta_y > 0:
-#         lambo = 180 - math.degrees(math.atan(delta_y / delta_x))  
-     # up
-#     elif delta_x == 0 and delta_y > 0:
-#         lambo = 90 
-     # down
-#     elif delta_x == 0 and delta_y < 0:
-#         lambo = 270 
-     # right
-#     elif delta_x > 0 and delta_y == 0:
-#         lambo = 0 
-     # left
-#     elif delta_x < 0 and delta_y == 0:
-#         lambo = 180  
-     # do not change
-#     else:
-#         lambo = 0
-#     print(lambo)
-#     if lambo > default_angle:
-#         return -lambo + default_angle
-#     elif lambo < default_angle:
-#         return default_angle - lambo
-#     else:
-#         return 0       
-
-
+# generate shorter path given path by taking only points of diffent angles
 def shorter_path(path):
+    # optimization
     if len(path) <= 2:
         return path
+
+    # add starting point to returned path
     shorter_path = [path[0]]
+
+    # add intermediate points of different angles to returned path
     angle = cal_angle(path[0], path[1])
     for i in range(1, len(path) - 1):
         if angle != cal_angle(path[i], path[i + 1]):
             shorter_path.append(path[i])
             angle = cal_angle(path[i], path[i + 1])
+
+    # add ending point to returned path
     shorter_path.append(path[-1])
+
     return shorter_path
 
 
@@ -333,18 +280,17 @@ class AutoNav(Node):
         # self.get_logger().info('In odom_callback')
         orientation_quat =  msg.pose.pose.orientation
         self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
-        #self.get_logger().info('self_yaw: %i' % self.yaw)
 
 
     def occ_callback(self, msg):
         # log to console if occ_callback() is called
-        #self.get_logger().info('In occ_callback')
-        # save orginal msg.data to file
-        save_to_file('raw_msgdata.txt', msg.data)
-        # create numpy array from original msg.data
+        # self.get_logger().info('In occ_callback')
+
+        write_to_file('raw_msgdata.txt', msg.data)
+
+        # create numpy array from original map data
         msgdata = np.array(msg.data)
-        # save numpy array msgdata to file
-        save_to_file('numpy_msgdata.txt', msgdata)
+        write_to_file('numpy_msgdata.txt', msgdata)
 
         # compute histogram to identify percent of bins with -1
         # occ_counts = np.histogram(msgdata,occ_bins)
@@ -353,24 +299,16 @@ class AutoNav(Node):
         # log the info
         # self.get_logger().info('Unmapped: %i Unoccupied: %i Occupied: %i Total: %i' % (occ_counts[0][0], occ_counts[0][1], occ_counts[0][2], total_bins))
 
-        # convert -1 to 1, [0:50] to 2, [51:100] to 3
-        #for i in range(len(msgdata)):
-        #    if msgdata[i] == -1:
-        #        msgdata[i] = unknown
-        #    elif msgdata[i] <= mapthreshold:
-        #        msgdata[i] = unoccupided
-        #    elif msgdata[i] > mapthreshold:
-        #        msgdata[i] = occupided
+        # encode map data by converting -1 to 1, [0:50] to 2, [51:100] to 3
         occ_counts, edges, msgdata = scipy.stats.binned_statistic(msgdata, np.nan, statistic='count', bins=occ_bins)
-        # save modified numpy array msgdata to file
-        save_to_file('encoded_msgdata.txt', msgdata)
-        # reshape 1d msgdata to 2d
+        write_to_file('encoded_msgdata.txt', msgdata)
+
+        # reshape 1d map data to 2d
         self.occdata = np.int8(msgdata.reshape(msg.info.height,msg.info.width))
-        self.encoded_msgdata = np.int8(msgdata.reshape(msg.info.height,msg.info.width))
-        # check whether map fully mapped
-        #self.get_logger().info('fully mapped: %s' % str(self.is_fully_mapped()))
-        # save 2d msgdata to file
         np.savetxt('2d_msgdata.txt', self.occdata)
+
+        # pad map data
+        self.encoded_msgdata = np.int8(msgdata.reshape(msg.info.height,msg.info.width))
         for i in range(len(self.encoded_msgdata)):
             for j in range(len(self.encoded_msgdata[0])):
                 if self.occdata[i][j] == occupied:
@@ -382,37 +320,29 @@ class AutoNav(Node):
                                 self.encoded_msgdata[test_node[0]][test_node[1]] = occupied
         np.savetxt('padded_msgdata.txt', self.encoded_msgdata)
 
+        # get transformation
         try:
             trans = self.tfBuffer.lookup_transform('map', 'base_link', rclpy.time.Time())
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
             self.get_logger().info('No transformation found')
             return
        
-        self.cur_pos = trans.transform.translation
-        cur_rot = trans.transform.rotation
-
+        # get map information
         self.map_res = msg.info.resolution
         map_origin = msg.info.origin.position
 
-        cur_row, cur_pitch, cur_yaw = euler_from_quaternion(cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w)
-        #self.get_logger().info('turtlebot current direction: %i degree' % math.degrees(cur_yaw))
-
+        # get turtlebot current position
+        self.cur_pos = trans.transform.translation
         self.grid_y = round((self.cur_pos.x - map_origin.x) / self.map_res)
         self.grid_x = round(((self.cur_pos.y - map_origin.y) / self.map_res))
-        #self.get_logger().info('turtlebot current position: (%i, %i)' % (self.grid_x, self.grid_y))
-
+        # encode turtlebot current position on map data
         self.occdata[self.grid_x][self.grid_y] = 4
 
-        np.savetxt(mapfile, self.occdata)
+        # get turtlebot current orientation
+        cur_rot = trans.transform.rotation
+        cur_row, cur_pitch, cur_yaw = euler_from_quaternion(cur_rot.x, cur_rot.y, cur_rot.z, cur_rot.w)
 
-        #path = bfs(self.occdata, [grid_x, grid_y], 1, 3)
-        #for points in path:
-        #    self.occdata[int(points[0])][int(points[1])] = 5
-        #np.savetxt('map_with_path.txt', self.occdata)
-        #self.get_logger().info('path length: %i' % len(path))
-        #self.get_logger().info('map size: %i x %i' % (len(self.occdata), len(self.occdata[0])))
-        #self.get_logger().info('ending point: (%i, %i)' % (path[len(path)-1][0], path[len(path)-1][1]))
-        #np.savetxt('path.txt', path)
+        np.savetxt(mapfile, self.occdata)
 
 
     def scan_callback(self, msg):
@@ -425,32 +355,6 @@ class AutoNav(Node):
         self.laser_range[self.laser_range==0] = np.nan
         
 
-    #def is_fully_mapped(self):
-    #    #self.get_logger().info('in is_fully_mapped1')
-    #    row = len(self.occdata)
-    #    col = len(self.occdata[0])
-    #    #self.get_logger().info('in is_fully_mapped2')
-    #    # iterate over the whole occdata
-    #    for i in range(row):
-    #        #self.get_logger().info('in is_fully_mapped3')
-    #        for j in range(col):
-    #            #self.get_logger().info('in is_fully_mapped4')
-    #            if self.occdata[i][j] == 0:
-    #                # get neighbouring values
-    #                #self.get_logger().info('in is_fully_mapped5')
-    #                topleft = 0 if (i == 0 or j == 0) else self.occdata[i-1][j-1]
-    #                top = 0 if i == 0 else self.occdata[i-1][j]
-    #                topright = 0 if (i == 0 or j == col) else self.occdata[i-1][j+1]
-    #                left = 0 if j == 0 else self.occdata[i][j-1]
-    #                right = 0 if j == col else self.occdata[i][j+1]
-    #                bottomleft = 0 if (i == row or j == 0) else self.occdata[i+1][j-1]
-    #                bottom = 0 if i == row else self.occdata[i+1][j]
-    #                bottomright = 0 if (i == row or j == col) else self.occdata[i+1][j+1]
-    #                #self.get_logger().info('in is_fully_mapped6')
-    #                # check whether any one of the neighbouring values is -1
-    #                return topleft == -1 or top == -1 or topright == -1 or left == -1 or right == -1 or bottomleft == -1 or bottom == -1 or bottomright == -1
-
-
     # function to rotate the TurtleBot
     def rotatebot(self, rot_angle):
         # self.get_logger().info('In rotatebot')
@@ -460,7 +364,7 @@ class AutoNav(Node):
         # get current yaw angle
         current_yaw = self.yaw
         # log the info
-        self.get_logger().info('Current: %f degree' % math.degrees(current_yaw))
+        self.get_logger().info('Current yaw: %f degree' % math.degrees(current_yaw))
         # we are going to use complex numbers to avoid problems when the angles go from
         # 360 to 0, or from -180 to 180
         c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
@@ -468,7 +372,7 @@ class AutoNav(Node):
         target_yaw = current_yaw + math.radians(rot_angle)
         # convert to complex notation
         c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
-        self.get_logger().info('Desired: %f degree' % math.degrees(cmath.phase(c_target_yaw)))
+        self.get_logger().info('Desired yaw: %f degree' % math.degrees(cmath.phase(c_target_yaw)))
         # divide the two complex numbers to get the change in direction
         c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
@@ -500,7 +404,7 @@ class AutoNav(Node):
             # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
         #self.get_logger().info('c_dir_diff: %i' % c_dir_diff)
-        self.get_logger().info('End Yaw: %f degree' % math.degrees(current_yaw))
+        self.get_logger().info('End yaw: %f degree' % math.degrees(current_yaw))
         # set the rotation speed to 0
         twist.angular.z = 0.0
         # stop the rotation
@@ -509,6 +413,8 @@ class AutoNav(Node):
 
     def pick_direction(self):
         self.get_logger().info('In pick_direction')
+
+        # if occ_callback() has not been called before, pick mapped direction with the largest lidar value
         if self.grid_x == -1 or self.grid_y == -1:
             if self.laser_range.size != 0:
                 # use nanargmax as there are nan's in laser_range added to replace 0's
@@ -531,40 +437,51 @@ class AutoNav(Node):
             time.sleep(1)
             self.publisher_.publish(twist)
 
+        # if occ_callback() has been called before, pick nearest unmapped direction
         if self.grid_x != -1 and self.grid_y != -1:
+            # generate path using bfs
             path = bfs(self.encoded_msgdata, [self.grid_x, self.grid_y], 1, 3)
+            np.savetxt('path.txt', path)
+
+            # if path generated is empty, navigation is completed!
             if len(path) == 0:
                 self.get_logger().info('Fully mapped!')
                 self.stopbot()
-            short_path = shorter_path(path)
 
-            for points in short_path:
-                #self.encoded_msgdata[int(points[0])][int(points[1])] = 5
-                self.encoded_msgdata[points[0]][points[1]] = 5
-            np.savetxt('map_with_shorter_path.txt', self.encoded_msgdata)
-            #self.get_logger().info('shorter path length: %i' % len(short_path))
+            # generate shorter path
+            short_path = shorter_path(path)
             np.savetxt('shorter_path.txt', short_path)
 
-            for points in path:
-                #self.encoded_msgdata[int(points[0])][int(points[1])] = 5
+            # encode shorter path on map data
+            for points in short_path:
                 self.encoded_msgdata[points[0]][points[1]] = 5
-            np.savetxt('map_with_path.txt', self.encoded_msgdata)
-            #self.get_logger().info('path length: %i' % len(path))
-            np.savetxt('path.txt', path)
+            # encode ending point
+            self.encoded_msgdata[short_path[-1][0]][short_path[-1][1]] = 7
+            np.savetxt('map_with_shorter_path.txt', self.encoded_msgdata)
+            # auto plot map with shorter path
+            plt.imshow(self.encoded_msgdata, cmap='gray')
+            plt.draw()
+            plt.pause(0.00000000001)
 
-            #self.get_logger().info('ending point: (%i, %i)' % (path[len(path)-1][0], path[len(path)-1][1]))
-            #self.get_logger().info('map size: %i x %i' % (len(self.encoded_msgdata), len(self.encoded_msgdata[0])))
-        
+            # encode path on map data
+            for points in path:
+                self.encoded_msgdata[points[0]][points[1]] = 5
+            # encode ending point
+            self.encoded_msgdata[short_path[-1][0]][short_path[-1][1]] = 7
+            np.savetxt('map_with_path.txt', self.encoded_msgdata)
+
+            # turtlebot move according to the shorter path generated
             curr_point = short_path[0]
             for point in short_path[1:]:
+                # rotate turtlebot
                 angle = cal_angle(curr_point, point, math.degrees(self.yaw))
-                #angle = cal_angle([curr_point[1], curr_point[0]], [point[1], point[0]], math.degrees(self.yaw))
-                #angle = cal_angle(curr_point, point)
-                #self.get_logger().info('start point: %i, %i' % (curr_point[0], curr_point[1]))
-                #self.get_logger().info('end point: %i, %i' % (point[0], point[1]))
-                self.get_logger().info('current direction: %i' % self.yaw)
-                self.get_logger().info('rotation required: %i' % angle)
+                if angle < 0:
+                    self.get_logger().info('Rotation: %f degree clockwise' % angle)
+                elif angle > 0:
+                    self.get_logger().info('Rotation: %f degree anticlockwise' % angle)
                 self.rotatebot(angle) 
+
+                # move forward
                 self.get_logger().info('Start moving')
                 twist = Twist()
                 twist.linear.x = speedchange
@@ -573,33 +490,27 @@ class AutoNav(Node):
                 self.publisher_.publish(twist)
                 #time.sleep(self.map_res / speedchange)
 
-                good_enuf_pos = []
-                for i in range(-2, 3):
-                    for j in range(-2, 3):
-                        test_point = [point[0]+i, point[1]+j]
-                        #test_point = [point[1]+i, point[0]+j]
-                        if test_point != point and valid(test_point, self.encoded_msgdata):
-                            good_enuf_pos.append(test_point)
-                np.savetxt('good_enuf_pos.txt', good_enuf_pos)
-
-                #while self.cur_pos != point:
-                #while [self.grid_x, self.grid_y] not in good_enuf_pos:
-                #    rclpy.spin_once(self)
-                    #self.get_logger().info('current position: %i, %i' % (self.grid_x, self.grid_y))
-                    #self.get_logger().info('desired position: %i, %i' % (point[0], point[1]))
-                    #self.get_logger().info('rotating')
-                #    continue
-
-                distance_squared = (curr_point[0] - point[0]) ** 2 + (curr_point[1] - point[1]) ** 2 
-                self.get_logger().info('distance: %i' % distance_squared)
-                #self.get_logger().info('curr_distance: %f' % ((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2))
-                while ((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2) < distance_squared:
-                    #self.get_logger().info('curr_distance: %f' % ((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2))
+                # check if desired coordinate has reached
+                distance = ((curr_point[0] - point[0]) ** 2 + (curr_point[1] - point[1]) ** 2) ** 0.5 
+                self.get_logger().info('Current coordinate: %i, %i' % (curr_point[0], curr_point[1]))
+                self.get_logger().info('Desired coordinate: %i, %i' % (point[0], point[1]))
+                self.get_logger().info('Distance: %i' % distance)
+                while (((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2) ** 0.5) < distance:
                     rclpy.spin_once(self)
+                    
+                    # in case the turtlebot does not follow the path generated and going to crash into the wall
+                    if self.laser_range.size != 0:
+                        lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
+                        if(len(lri[0])>0):
+                            self.stopbot()
+                            self.get_logger().info('Too far!')
+                            self.pick_direction()
+
                     continue
 
-                self.get_logger().info('out of loop coordinate: %i, %i' % (self.grid_x, self.grid_y))
-                curr_point = [self.grid_x, self.grid_y]
+                self.get_logger().info('End coordinate: %i, %i' % (self.grid_x, self.grid_y))
+                #curr_point = [self.grid_x, self.grid_y]
+                curr_point = [point[0], point[1]]
 
 
     def stopbot(self):
@@ -668,4 +579,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
