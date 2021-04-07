@@ -30,9 +30,10 @@ import scipy.stats
 from queue import Queue
 
 # constants
-rotatechange = 0.1
-speedchange = 0.1
-padding = 4
+rotatechange = 0.13
+speedchange = 0.08
+speed_calibration = 0.75
+padding = 3
 buffer_time = 1
 occ_bins = [-1, 0, 51, 100]
 stop_distance = 0.5
@@ -268,7 +269,7 @@ def shorter_path_v2(path, matrix):
         for j in range(len(neighbours)):
             neighbour = neighbours[j]
             number_of_neighbours += matrix[neighbour[0]][neighbour[1]]
-        if number_of_neighbours == 1:
+        if number_of_neighbours == 2:
             shorter_path.append(neighbour)
 
     shorter_path.append(path[-1])
@@ -499,8 +500,8 @@ class AutoNav(Node):
                 self.stopbot()
 
             # generate shorter path
-            #short_path = shorter_path(path)
-            short_path = shorter_path_v2(path, self.encoded_msgdata)
+            short_path = shorter_path(path)
+            #short_path = shorter_path_v2(path, self.encoded_msgdata)
             np.savetxt('shorter_path.txt', short_path)
 
             # encode shorter path on map data
@@ -566,7 +567,7 @@ class AutoNav(Node):
                 self.get_logger().info('self.map_res: %f' % self.map_res)
                 self.get_logger().info('Distance: %f m' % calibrated_distance)
                 # calculate speed
-                calibrated_speed = speedchange * 1
+                calibrated_speed = speedchange * speed_calibration
                 self.get_logger().info('Speed: %f m/s' % calibrated_speed)
                 # calculate time
                 calibrated_time = calibrated_distance / calibrated_speed + buffer_time
