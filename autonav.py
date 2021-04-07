@@ -31,9 +31,11 @@ from queue import Queue
 
 # constants
 rotatechange = 0.1
-speedchange = 0.05
+speedchange = 0.1
+padding = 4
+buffer_time = 1
 occ_bins = [-1, 0, 51, 100]
-stop_distance = 0.25
+stop_distance = 0.5
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
@@ -226,6 +228,54 @@ def shorter_path(path):
     return shorter_path
 
 
+def getNeighbours(node, matrix):
+    neighbours = []
+    potential_neighbours = []
+
+    top = (node[0]-1, node[1])
+    left = (node[0], node[1]-1)
+    right = (node[0], node[1]+1)
+    bottom = (node[0]+1, node[1])
+    top_left = (node[0]-1, node[1]-1)
+    top_right = (node[0]-1, node[1]+1)
+    bottom_left = (node[0]+1, node[1]-1)
+    bottom_right = (node[0]+1, node[1]+1)
+
+    potential_neighbours.append(top)
+    potential_neighbours.append(left)
+    potential_neighbours.append(right)
+    potential_neighbours.append(bottom)
+    potential_neighbours.append(top_left)
+    potential_neighbours.append(top_right)
+    potential_neighbours.append(bottom_left)
+    potential_neighbours.append(bottom_right)
+    
+    for potential_neighbour in potential_neighbours:
+        if valid(potential_neighbour, matrix):
+            neighbours.append(potential_neighbour)
+    return neighbours
+
+
+def shorter_path_v2(path, matrix):
+    if len(path) <= 2:
+        return path
+
+    shorter_path = [path[0]]
+    for i in range(1, len(path) - 1):
+        point = path[i]
+        neighbours = getNeighbours(point, matrix)
+        number_of_neighbours = 0
+        for j in range(len(neighbours)):
+            neighbour = neighbours[j]
+            number_of_neighbours += matrix[neighbour[0]][neighbour[1]]
+        if number_of_neighbours == 1:
+            shorter_path.append(neighbour)
+
+    shorter_path.append(path[-1])
+
+    return shorter_path
+
+
 class AutoNav(Node):
 
     def __init__(self):
@@ -313,8 +363,8 @@ class AutoNav(Node):
             for j in range(len(self.encoded_msgdata[0])):
                 if self.occdata[i][j] == occupied:
                     node = [i, j]
-                    for k in range(-2, 2):
-                        for l in range(-2, 2):
+                    for k in range(-padding, padding + 1):
+                        for l in range(-padding, padding + 1):
                             test_node = [i+k, j+l]
                             if test_node != node and valid(test_node, self.encoded_msgdata):
                                 self.encoded_msgdata[test_node[0]][test_node[1]] = occupied
@@ -449,7 +499,8 @@ class AutoNav(Node):
                 self.stopbot()
 
             # generate shorter path
-            short_path = shorter_path(path)
+            #short_path = shorter_path(path)
+            short_path = shorter_path_v2(path, self.encoded_msgdata)
             np.savetxt('shorter_path.txt', short_path)
 
             # encode shorter path on map data
@@ -460,7 +511,7 @@ class AutoNav(Node):
             np.savetxt('map_with_shorter_path.txt', self.encoded_msgdata)
             # auto plot map with shorter path
             plt.imshow(self.encoded_msgdata, cmap='gray')
-            plt.draw()
+            #plt.draw()
             plt.pause(0.00000000001)
 
             # encode path on map data
@@ -488,27 +539,43 @@ class AutoNav(Node):
                 twist.angular.z = 0.0
                 time.sleep(1)
                 self.publisher_.publish(twist)
-                #time.sleep(self.map_res / speedchange)
 
                 # check if desired coordinate has reached
-                distance = ((curr_point[0] - point[0]) ** 2 + (curr_point[1] - point[1]) ** 2) ** 0.5 
-                self.get_logger().info('Current coordinate: %i, %i' % (curr_point[0], curr_point[1]))
-                self.get_logger().info('Desired coordinate: %i, %i' % (point[0], point[1]))
-                self.get_logger().info('Distance: %i' % distance)
-                while (((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2) ** 0.5) < distance:
-                    rclpy.spin_once(self)
+                #distance = ((curr_point[0] - point[0]) ** 2 + (curr_point[1] - point[1]) ** 2) ** 0.5 
+                #self.get_logger().info('Current coordinate: %i, %i' % (curr_point[0], curr_point[1]))
+                #self.get_logger().info('Desired coordinate: %i, %i' % (point[0], point[1]))
+                #self.get_logger().info('Distance: %i' % distance)
+                #while (((self.grid_x - curr_point[0]) ** 2 + (self.grid_y - curr_point[1]) ** 2) ** 0.5) < distance:
+                #    rclpy.spin_once(self)
                     
                     # in case the turtlebot does not follow the path generated and going to crash into the wall
-                    if self.laser_range.size != 0:
-                        lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
-                        if(len(lri[0])>0):
-                            self.stopbot()
-                            self.get_logger().info('Too far!')
-                            self.pick_direction()
+                    #if self.laser_range.size != 0:
+                    #    lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
+                    #    if(len(lri[0])>0):
+                    #        self.stopbot()
+                    #        self.get_logger().info('Too far!')
+                    #        self.pick_direction()
 
-                    continue
+                #    continue
 
-                self.get_logger().info('End coordinate: %i, %i' % (self.grid_x, self.grid_y))
+                # calculate distance
+                rclpy.spin_once(self)
+                distance = ((curr_point[0] - point[0]) ** 2 + (curr_point[1] - point[1]) ** 2) ** 0.5 
+                calibrated_distance = distance * self.map_res
+                #calibrated_distance = distance
+                self.get_logger().info('self.map_res: %f' % self.map_res)
+                self.get_logger().info('Distance: %f m' % calibrated_distance)
+                # calculate speed
+                calibrated_speed = speedchange * 1
+                self.get_logger().info('Speed: %f m/s' % calibrated_speed)
+                # calculate time
+                calibrated_time = calibrated_distance / calibrated_speed + buffer_time
+                self.get_logger().info('Time: %f s' % calibrated_time)
+                time.sleep(calibrated_time)
+                self.get_logger().info('Done moving forward')
+
+                # update current point
+                #self.get_logger().info('End coordinate: %i, %i' % (self.grid_x, self.grid_y))
                 #curr_point = [self.grid_x, self.grid_y]
                 curr_point = [point[0], point[1]]
 
