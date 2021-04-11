@@ -291,6 +291,7 @@ class AutoNav(Node):
         self.called_once = False
         self.manual_yaw = 0
         self.manual_yaw_once = False
+        self.updated = False
         
         # create publisher for moving TurtleBot
         self.publisher_ = self.create_publisher(Twist,'cmd_vel',10)
@@ -378,8 +379,10 @@ class AutoNav(Node):
         # get transformation
         try:
             trans = self.tfBuffer.lookup_transform('map', 'base_link', rclpy.time.Time())
+            self.updated = True
         except (LookupException, ConnectivityException, ExtrapolationException) as e:
             self.get_logger().info('No transformation found')
+            self.updated = False
             return
        
         # get map information
@@ -484,9 +487,8 @@ class AutoNav(Node):
         if self.called_once == False:
             self.manual_yaw = current_yaw
         else:
-            self.manual.yaw = self.yaw
-            self.manual.yaw = current.yaw
-            self.called_once = True
+            self.manual_yaw = self.yaw
+            #self.called_once = True
             print('the choppa with the band its a drummer')
 
         # set the rotation speed to 0
@@ -525,6 +527,8 @@ class AutoNav(Node):
         if self.grid_x != -1 and self.grid_y != -1:
             # generate path using bfs
             rclpy.spin_once(self)
+            while not self.updated:
+                rclpy.spin_once(self)
             self.get_logger().info('Start coordinate: %i, %i' % (self.grid_x, self.grid_y))
             path = bfs(self.encoded_msgdata, [self.grid_x, self.grid_y], 1, 3)
             np.savetxt('path.txt', path)
