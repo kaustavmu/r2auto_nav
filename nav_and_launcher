@@ -32,15 +32,15 @@ from std_msgs.msg import String
 
 # constants
 rotatechange = 0.13
-increase_in_yaw = 0.13
+increase_in_yaw = 0.052
 speedchange = 0.08
 speed_calibration = 0.975
 padding = 3
 buffer_time = 0
 occ_bins = [-1, 0, 51, 100]
 stop_distance = 0.5
-shorter_stop_distance = 0.4
-front_angle = 30
+shorter_stop_distance = 0.2
+front_angle = 20
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
 mapfile = 'map.txt'
@@ -344,7 +344,6 @@ class AutoNav(Node):
         self.publisher_launcher_ = self.create_publisher(String, 'launcher_ready', 10)
         # if handing over control to launcher, set to true
         self.launcher_ready = True
-        self.launcher_init_yaw = 0.0
         self.on_target = False
         self.found_target = False
         self.fired_once = False
@@ -358,6 +357,7 @@ class AutoNav(Node):
             return
         elif (msg.data == "not found"):
             self.found_target = False
+            """ 
             # if we have control, turn 360 degrees to search for target
             self.get_logger().info('self.yaw: %s"' % math.degrees(self.yaw))
             self.get_logger().info('self.launcher_init_yaw: %s"' % self.launcher_init_yaw)
@@ -371,15 +371,16 @@ class AutoNav(Node):
                 self.publisher_.publish(twist)
                 self.launcher_ready = False
                 print('360 complete')
+               
             # if no control, do nothing 
             else:
                 print('doing nothing')
+            """
             return
         elif (msg.data == "on target"):
             # give me control and stop moving
             self.launcher_ready = True
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
+            self.stopbot()
             # navigate to the target if too far            
            #dist_target = self.laser_range[100]         # at ~70cm, degree of ir ~100
 
@@ -409,12 +410,14 @@ class AutoNav(Node):
             twist.angular.z = rotatechange
             self.publisher_.publish(twist)
             self.found_target = True
+            self.on_target = False
             return
         elif (msg.data == "right"):
             self.launcher_ready = True
             twist.angular.z = -1 * rotatechange
             self.publisher_.publish(twist)
             self.found_target = True
+            self.on_target = False
             return
         else:
             print('bad string -> launcher_callback()')
@@ -423,8 +426,15 @@ class AutoNav(Node):
         if (self.found_target):
             while(not self.on_target and self.found_target):
                 rclpy.spin_once(self)
-        rclpy.spin_once(self)
-        return
+            
+            self.on_target = False
+            self.found_target = False
+            self.manual_yaw = self.yaw
+            self.pick_direction()
+            return
+        else:
+            rclpy.spin_once(self)
+            return
 
     def odom_callback(self, msg):
             # self.get_logger().info('In odom_callback')
@@ -553,7 +563,7 @@ class AutoNav(Node):
             self.spin_once_shoot()
             #current_yaw = self.yaw
 
-            time.sleep(0.1)
+            time.sleep(0.5)
             if c_change_dir > 0:
                 current_yaw += increase_in_yaw
             else:
@@ -691,7 +701,7 @@ class AutoNav(Node):
                 twist = Twist()
                 twist.linear.x = speedchange
                 twist.angular.z = 0.0
-                time.sleep(0.5)
+                time.sleep(0.4)
                 self.publisher_.publish(twist)
 
                 # check if desired coordinate has reached
