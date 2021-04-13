@@ -486,9 +486,9 @@ class AutoNav(Node):
         
         if self.called_once == False:
             self.manual_yaw = current_yaw
+            #self.called_once = True
         else:
             self.manual_yaw = self.yaw
-            #self.called_once = True
             print('the choppa with the band its a drummer')
 
         # set the rotation speed to 0
