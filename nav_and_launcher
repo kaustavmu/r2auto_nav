@@ -803,7 +803,7 @@ class AutoNav(Node):
                     
                 # allow the callback functions to run
                 #rclpy.spin_once(self)
-                self.pin_once_shoot()
+                self.spin_once_shoot()
 
         except Exception as e:
             print(e)
