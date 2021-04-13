@@ -15,346 +15,234 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist
-from rclpy.qos import qos_profile_sensor_data
-from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import OccupancyGrid
-import numpy as np
-import math
-import cmath
+
 import time
+import busio
+import board
+import adafruit_amg88xx
+import RPi.GPIO as GPIO
 
-# constants
-rotatechange = 0.1
-speedchange = 0.05
-occ_bins = [-1, 0, 100, 101]
-stop_distance = 0.25
-front_angle = 30
-front_angles = range(-front_angle,front_angle+1,1)
-scanfile = 'lidar.txt'
-mapfile = 'map.txt'
+THRESHOLDTEMP = 32
 
-# code from https://automaticaddison.com/how-to-convert-a-quaternion-into-euler-angles-in-python/
-def euler_from_quaternion(x, y, z, w):
-    """
-    Convert a quaternion into euler angles (roll, pitch, yaw)
-    roll is rotation around x in radians (counterclockwise)
-    pitch is rotation around y in radians (counterclockwise)
-    yaw is rotation around z in radians (counterclockwise)
-    """
-    t0 = +2.0 * (w * x + y * z)
-    t1 = +1.0 - 2.0 * (x * x + y * y)
-    roll_x = math.atan2(t0, t1)
+# setup i2c for ir
 
-    t2 = +2.0 * (w * y - z * x)
-    t2 = +1.0 if t2 > +1.0 else t2
-    t2 = -1.0 if t2 < -1.0 else t2
-    pitch_y = math.asin(t2)
+GPIO.setmode(GPIO.BCM)
+ir_power_pin = 17
+GPIO.setup(ir_power_pin, GPIO.OUT)
+GPIO.output(ir_power_pin, 1)
+time.sleep(1)
+i2c = busio.I2C(board.SCL, board.SDA)
+amg = adafruit_amg88xx.AMG88XX(i2c)
 
-    t3 = +2.0 * (w * z + x * y)
-    t4 = +1.0 - 2.0 * (y * y + z * z)
-    yaw_z = math.atan2(t3, t4)
 
-    return roll_x, pitch_y, yaw_z # in radians
-
-class AutoNav(Node):
-
+class MinimalPublisher(Node):
     def __init__(self):
-        super().__init__('auto_nav')
-        
-        # create publisher for moving TurtleBot
-        self.publisher_ = self.create_publisher(Twist,'cmd_vel',10)
-        # self.get_logger().info('Created publisher')
-        
-        # create subscription to track orientation
-        self.odom_subscription = self.create_subscription(
-            Odometry,
-            'odom',
-            self.odom_callback,
-            10)
-        # self.get_logger().info('Created subscriber')
-        self.odom_subscription  # prevent unused variable warning
-        # initialize variables
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
-        
-        # create subscription to track occupancy
-        self.occ_subscription = self.create_subscription(
-            OccupancyGrid,
-            'map',
-            self.occ_callback,
-            qos_profile_sensor_data)
-        self.occ_subscription  # prevent unused variable warning
-        self.occdata = np.array([])
-        
-        # create subscription to track lidar
-        self.scan_subscription = self.create_subscription(
-            LaserScan,
-            'scan',
-            self.scan_callback,
-            qos_profile_sensor_data)
-        self.scan_subscription  # prevent unused variable warning
-        self.laser_range = np.array([])
+        super().__init__('minimal_publisher')
 
-        # create subscription to track launcher
-        self.launcher_subscription = self.create_subscription(
+        # create publisher for data about target
+        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        timer_period = 0.4 # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+
+        # create subscriber to tell launcher when it can fire
+        self.launcher_ready_subscription = self.create_subscription(
             String,
-            'topic',
-            self.launcher_callback,
+            'launcher_ready',
+            self.launcher_ready_callback,
             10)
-        self.launcher_subscription # prevent unused variable warning
 
-        # create publisher for launcher to be ready
-        self.publisher_launcher_ = self.create_publisher(String, 'launcher_ready', 10)
-        # if handing over control to launcher, set to true
-        self.launcher_ready = False
-        self.launcher_init_yaw = 0.0
+    def timer_callback(self):
+        if (not self.target_hit):
+            data = String()
+            data = self.detect_target()
+            msg = String()
+            msg.data = data
+            self.publisher_.publish(msg)
+            self.get_logger().info('Publishing: "%s"' % msg.data)
+            if (data == 'on target'):
+                self.fire_ping_pong()
+        return
 
-    def launcher_callback(self, msg):
-        twist = Twist()
-        self.get_logger().info('Subscribing: "%s"' % msg.data)
-        if (msg.data == 'target hit'):
-            # return control back to navigation
-            self.launcher_ready = False
-            return
-        elif (msg.data == "not found"):
-            # if we have control, turn 360 degrees to search for target
-            self.get_logger().info('self.yaw: %s"' % math.degrees(self.yaw))
-            self.get_logger().info('self.launcher_init_yaw: %s"' % self.launcher_init_yaw)
-            yaw = math.degrees(self.yaw) + 1
-            if (self.launcher_ready and ((yaw < (self.launcher_init_yaw - 10) or (yaw > self.launcher_init_yaw)))):
-                twist.angular.z = rotatechange
-                self.publisher_.publish(twist)
-            # if we finish the 360 turn, stop bot and give control back
-            elif (self.launcher_ready):
-                twist.angular.z = 0.0
-                self.publisher_.publish(twist)
-                self.launcher_ready = False
-                print('360 complete')
-            # if no control, do nothing 
-            else:
-                print('doing nothing')
-            return
-        elif (msg.data == "on target"):
-            # give me control and stop moving
-            self.launcher_ready = True
-            twist.angular.z = 0.0
-            self.publisher_.publish(twist)
-            # navigate to the target if too far            
-            dist_target = self.laser_range[100]         # at ~70cm, degree of ir ~100
+    def detect_target(self):
+        i = 0
+        max_temp = 0
+        combined_row = [0 for i in range(8)]
+        for row in amg.pixels:
+            for temp in row:
+        #        print(['{0:.1f}'.format(temp)], end = " ")
+                if (temp > max_temp):
+                    max_temp = temp
+                combined_row[i] += temp
+         #   print()
+            i += 1
+        #print(combined_row)
+        #detect target
+        weight_left = combined_row[0] + combined_row[1] + combined_row[2]
+        weight_center = (combined_row[3] + combined_row[4]) * 3/2
+        weight_right = combined_row[5] + combined_row[6] + combined_row[7]
 
-            if (dist_target > 50):
-                self.rotatebot(90) # rotate to the right 90
-                twistforward = Twist()
-                twistforward.linear.x = speedchange
-                self.publisher_.publish(twist)
-                time.sleep(5);
-                stopbot()
-
-            # give ok to shoot 
-            launcher_ready = String()
-            launcher_ready.data = 'launcher ready'
-            self.publisher_launcher_.publish(launcher_ready)
-            self.get_logger().info('Publishing: %s"'% launcher_ready.data)
-            return
-        elif (msg.data == "left"):
-            #give me control
-            self.launcher_ready = True
-            twist.angular.z = rotatechange
-            self.publisher_.publish(twist)
-            return
-        elif (msg.data == "right"):
-            self.launcher_ready = True
-            twist.angular.z = -1 * rotatechange
-            self.publisher_.publish(twist)
-            return
+        if (self.target_hit):
+            return 'target hit'
+        elif (max_temp < 30):
+            return 'not found'
+        elif (weight_center > weight_left and weight_center > weight_right):
+            return 'on target'
+        elif (weight_left > weight_center and weight_left > weight_right):
+            return 'right'
+        elif (weight_right > weight_center):
+            return 'left'
         else:
-            print('bad string -> launcher_callback()')
+            return '?'
 
-    def odom_callback(self, msg):
-        # self.get_logger().info('In odom_callback')
-        orientation_quat =  msg.pose.pose.orientation
-        self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation_quat.x, orientation_quat.y, orientation_quat.z, orientation_quat.w)
+    def fire_ping_pong(self):
+        time.sleep(2)
+        if (not self.target_hit):
+            # aim picthing
+            #pitchcontrols
+            forwardp = 6.01
+            backp = 7.6
+            pitchpin = 18
+            stop = 7
+            GPIO.setup(pitchpin, GPIO.OUT)
+            pp = GPIO.PWM(pitchpin, 50)
+            pp.start(7.0)
+            combined_col = [0 for i in range(8)]
+            middle = False;
+            count = 0
+            while(not middle and count < 8):
+                for row in amg.pixels:
+                    col_i = 0;
+                    for temp in row:
+                        print(['{0:.1f}'.format(temp)], end = " ")
+                        combined_col[col_i] += temp
+                        col_i += 1;
+                    print()
+                weight_up = combined_col[0] + combined_col[1] + combined_col[2]
+                weight_middle = (combined_col[3] + combined_col[4]) * 3/2
+                weight_down = combined_col[5] + combined_col[6] + combined_col[7]
 
+                if (weight_middle > weight_up and weight_middle > weight_down):
+                    print("target middle")
+                    middle = True
+                elif (weight_up > weight_middle and weight_up > weight_down):
+                    print("target up")
+                    pp.ChangeDutyCycle(backp)
+                    time.sleep(0.2)
+                    pp.ChangeDutyCycle(stop)
+                    time.sleep(0.5)
+                elif(weight_down > weight_middle):
+                    print("target down")
+                    pp.ChangeDutyCycle(forwardp)
+                    time.sleep(0.2)
+                    pp.ChangeDutyCycle(stop)
+                    time.sleep(0.5)
+                else:
+                    print('not sure')
+                count += 1
+                time.sleep(0.2)
 
-    def occ_callback(self, msg):
-        # self.get_logger().info('In occ_callback')
-        # create numpy array
-        msgdata = np.array(msg.data)
-        # compute histogram to identify percent of bins with -1
-        # occ_counts = np.histogram(msgdata,occ_bins)
-        # calculate total number of bins
-        # total_bins = msg.info.width * msg.info.height
-        # log the info
-        # self.get_logger().info('Unmapped: %i Unoccupied: %i Occupied: %i Total: %i' % (occ_counts[0][0], occ_counts[0][1], occ_counts[0][2], total_bins))
+            en = 21
+            in2 = 5
+            in1 = 6
+            d2 = 19
+            d1 = 13
+            sf = 16
 
-        # make msgdata go from 0 instead of -1, reshape into 2D
-        oc2 = msgdata + 1
-        # reshape to 2D array using column order
-        # self.occdata = np.uint8(oc2.reshape(msg.info.height,msg.info.width,order='F'))
-        self.occdata = np.uint8(oc2.reshape(msg.info.height,msg.info.width))
-        # print to file
-        np.savetxt(mapfile, self.occdata)
-
-
-    def scan_callback(self, msg):
-        # self.get_logger().info('In scan_callback')
-        # create numpy array
-        self.laser_range = np.array(msg.ranges)
-        # print to file
-        np.savetxt(scanfile, self.laser_range)
-        # replace 0's with nan
-        self.laser_range[self.laser_range==0] = np.nan
-
-
-    # function to rotate the TurtleBot
-    def rotatebot(self, rot_angle):
-        # self.get_logger().info('In rotatebot')
-        # create Twist object
-        twist = Twist()
-        
-        # get current yaw angle
-        current_yaw = self.yaw
-        # log the info
-        self.get_logger().info('Current: %f' % math.degrees(current_yaw))
-        # we are going to use complex numbers to avoid problems when the angles go from
-        # 360 to 0, or from -180 to 180
-        c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-        # calculate desired yaw
-        target_yaw = current_yaw + math.radians(rot_angle)
-        # convert to complex notation
-        c_target_yaw = complex(math.cos(target_yaw),math.sin(target_yaw))
-        self.get_logger().info('Desired: %f' % math.degrees(cmath.phase(c_target_yaw)))
-        # divide the two complex numbers to get the change in direction
-        c_change = c_target_yaw / c_yaw
-        # get the sign of the imaginary component to figure out which way we have to turn
-        c_change_dir = np.sign(c_change.imag)
-        # set linear speed to zero so the TurtleBot rotates on the spot
-        twist.linear.x = 0.0
-        # set the direction to rotate
-        twist.angular.z = c_change_dir * rotatechange
-        # start rotation
-        self.publisher_.publish(twist)
-
-        # we will use the c_dir_diff variable to see if we can stop rotating
-        c_dir_diff = c_change_dir
-        # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-        # if the rotation direction was 1.0, then we will want to stop when the c_dir_diff
-        # becomes -1.0, and vice versa
-        while(c_change_dir * c_dir_diff > 0):
-            # allow the callback functions to run
-            rclpy.spin_once(self)
-            current_yaw = self.yaw
-            # convert the current yaw to complex form
-            c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
-            # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
-            # get difference in angle between current and target
-            c_change = c_target_yaw / c_yaw
-            # get the sign to see if we can stop
-            c_dir_diff = np.sign(c_change.imag)
-            # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
-
-        self.get_logger().info('End Yaw: %f' % math.degrees(current_yaw))
-        # set the rotation speed to 0
-        twist.angular.z = 0.0
-        # stop the rotation
-        self.publisher_.publish(twist)
+            #rack controls
+            forward = 7.6 #7.6
+           backward = 6.6 #6.6
+            servo_pin = 4
+            GPIO.setup(servo_pin, GPIO.OUT)
+            p = GPIO.PWM(servo_pin, 50)
+            p.start(7.0)
 
 
-    def pick_direction(self):
-        # self.get_logger().info('In pick_direction')
-        if self.laser_range.size != 0:
-            # use nanargmax as there are nan's in laser_range added to replace 0's
-            lr2i = np.nanargmax(self.laser_range)
-            self.get_logger().info('Picked direction: %d %f m' % (lr2i, self.laser_range[lr2i]))
-        else:
-            lr2i = 0
-            self.get_logger().info('No data!')
+            GPIO.setup(en, GPIO.OUT)
+            GPIO.setup(in2, GPIO.OUT)
+            GPIO.setup(in1, GPIO.OUT)
+            GPIO.setup(d2, GPIO.OUT)
+            GPIO.setup(d1, GPIO.OUT)
 
-        # rotate to that direction
-        self.rotatebot(float(lr2i))
+            GPIO.output(in2, 0)
+            GPIO.output(in1, 1)
+            GPIO.output(d2, 1)
+            GPIO.output(d1, 0)
 
-        # start moving
-        self.get_logger().info('Start moving')
-        twist = Twist()
-        twist.linear.x = speedchange
-        twist.angular.z = 0.0
-        # not sure if this is really necessary, but things seem to work more
-        # reliably with this
-        time.sleep(1)
-        self.publisher_.publish(twist)
-
-
-    def stopbot(self):
-        self.get_logger().info('In stopbot')
-        # publish to cmd_vel to move TurtleBot
-        twist = Twist()
-        twist.linear.x = 0.0
-        twist.angular.z = 0.0
-        # time.sleep(1)
-        self.publisher_.publish(twist)
-
-
-    def mover(self):
-        try:
-            # initialize variable to write elapsed time to file
-            # contourCheck = 1
-
-            # find direction with the largest distance from the Lidar,
-            # rotate to that direction, and start moving
-            # self.pick_direction()
-            # code to simulate nav giving launcher control to turn 360
-            while (self.yaw == 0.0):
-                rclpy.spin_once(self)
-            self.launcher_ready = True
-            self.launcher_init_yaw = math.degrees(self.yaw)            #store intial yaw
-            
-            
-            while rclpy.ok():
-           #     if self.laser_range.size != 0:
-                    # check distances in front of TurtleBot and find values less
-                    # than stop_distance
-             #       lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
-                    # self.get_logger().info('Distances: %s' % str(lri))
-
-                    # if the list is not empty
-            #        if(len(lri[0])>0):
-                        # stop moving
-             #           self.stopbot()
-                        # find direction with the largest distance from the Lidar
-                        # rotate to that direction
-                        # start moving
-#                        self.pick_direction()
-                        
-                # allow the callback functions to run
-                rclpy.spin_once(self)
-
-        except Exception as e:
-            print(e)
-        
-        # Ctrl-c detected
-        finally:
-            # stop moving
-            self.stopbot()
-
+            #GPIO.output(en,1)                   # start flywheels
+            for i in range (2):
+                time.sleep(1)
+                p.ChangeDutyCycle(forward)      # move rack forward
+                #0.23
+                time.sleep(0.23)
+                p.ChangeDutyCycle(stop)         # stop rack movement
+                time.sleep(1)
+                p.ChangeDutyCycle(backward)     # move rac            GPIO.cleanup()
+        self.target_hit = True
+        return
 
 def main(args=None):
-    rclpy.init(args=args)
+    try:
+        rclpy.init(args=args)
 
-    auto_nav = AutoNav()
-    auto_nav.mover()
+        minimal_publisher = MinimalPublisher()
 
-    # create matplotlib figure
-    # plt.ion()
-    # plt.show()
+        rclpy.spin(minimal_publisher)
 
+    except KeyboardInterrupt:
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    auto_nav.destroy_node()
-    rclpy.shutdown()
+        #GPIO.output(en,0)
+        #GPIO.cleanup()
+        minimal_publisher.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+k back to load next ball
+                #0.23
+                time.sleep(0.21)
+                p.ChangeDutyCycle(stop)         # stop rack movement
+                time.sleep(1.5)
+            GPIO.output(en, 0)                  # stop flywheels
+            GPIO.cleanup()
+        self.target_hit = True
+        return
+
+def main(args=None):
+    try:
+        rclpy.init(args=args)
+
+        minimal_publisher = MinimalPublisher()
+
+        rclpy.spin(minimal_publisher)
+
+    except KeyboardInterrupt:
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+        #GPIO.output(en,0)
+            GPIO.cleanup()
+        self.target_hit = True
+        return
+
+def main(args=None):
+    try:
+        rclpy.init(args=args)
+
+        minimal_publisher = MinimalPublisher()
+
+        rclpy.spin(minimal_publisher)
+
+    except KeyboardInterrupt:
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+        #GPIO.output(en,0)
+        #GPIO.cleanup()
+        minimal_publisher.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
