@@ -143,34 +143,24 @@ class AutoNav(Node):
             return
         elif (msg.data == "on target"):
             self.on_target = True
+            # if the target is on the left, we need to overshoot slightly to align the launcher
             if (self.last_left):
                 time.sleep(1)
             # give me control and stop moving
             self.launcher_ready = True
             twist.angular.z = 0.0
             self.publisher_.publish(twist)
-            # navigate to the target if too far            
-           #dist_target = self.laser_range[100]         # at ~70cm, degree of ir ~100
-
-            """
-            if (dist_target > 50):
-                self.rotatebot(90) # rotate to the right 90
-                twistforward = Twist()
-                twistforward.linear.x = speedchange
-                self.publisher_.publish(twist)
-                time.sleep(5);
-                stopbot()
-            """
             # give ok to shoot 
             launcher_ready = String()
             launcher_ready.data = 'launcher ready'
             self.publisher_launcher_.publish(launcher_ready)
             self.get_logger().info('Publishing: %s"'% launcher_ready.data)
+            # give time for the launcher to fire
             time.sleep(5)
             return
         elif (msg.data == "left"):
-            #give me control
             self.launcher_ready = True
+            # turn left
             twist.angular.z = rotatechange
             self.publisher_.publish(twist)
             self.found_target = True
@@ -178,6 +168,7 @@ class AutoNav(Node):
             return
         elif (msg.data == "right"):
             self.launcher_ready = True
+            # turn right
             twist.angular.z = -1 * rotatechange
             self.publisher_.publish(twist)
             self.found_target = True
@@ -185,14 +176,7 @@ class AutoNav(Node):
             return
         else:
             print('bad string -> launcher_callback()')
-    
-    def spin_once_shoot(self):
-        if (self.found_target):
-            while(not self.on_target and self.found_target):
-                rclpy.spin_once(self)
-      
-        rclpy.spin_once(self)
-        return
+   
 
     def odom_callback(self, msg):
         # self.get_logger().info('In odom_callback')
@@ -323,41 +307,13 @@ class AutoNav(Node):
             # initialize variable to write elapsed time to file
             # contourCheck = 1
 
-            # find direction with the largest distance from the Lidar,
-            # rotate to that direction, and start moving
-            # self.pick_direction()
             # code to simulate nav giving launcher control to turn 360
             while (self.yaw == 0.0):
                 rclpy.spin_once(self)
             self.launcher_ready = True
             self.launcher_init_yaw = math.degrees(self.yaw)            #store intial yaw
-            """
-            while True:
-                rclpy.spin_once(self)
-                self.shoot_target()
-                print('hello')
-            """
+
             while rclpy.ok(): 
-                # and not self.on_target):
-           #     if self.laser_range.size != 0:
-                    # check distances in front of TurtleBot and find values less
-                    # than stop_distance
-             #       lri = (self.laser_range[front_angles]<float(stop_distance)).nonzero()
-                    # self.get_logger().info('Distances: %s' % str(lri))
-
-                    # if the list is not empty
-            #        if(len(lri[0])>0):
-                        # stop moving
-             #           self.stopbot()
-                        # find direction with the largest distance from the Lidar
-                        # rotate to that direction
-                        # start moving
-#                        self.pick_direction()
-                if (self.found_target):
-                    while (not self.on_target and self.found_target):
-                        print('searchinig')
-                        rclpy.spin_once(self)
-
                 # allow the callback functions to run
                 rclpy.spin_once(self)
 
