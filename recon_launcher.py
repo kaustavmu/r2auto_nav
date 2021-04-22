@@ -26,7 +26,6 @@ pi = pigpio.pi()
 
 
 #setup for launcher & rack
-
 en = 21
 in2 = 5
 in1 = 6
@@ -34,7 +33,7 @@ d2 = 19
 d1 = 13
 sf = 16
 
-#pitch control #edit values
+#pitch control 
 forwardp = 2000
 backp = 1000
 stopp = 1500
@@ -60,7 +59,6 @@ pi.write(d1, 0)
 THRESHOLDTEMP = 32
 
 # setup i2c for ir
-
 ir_power_pin = 17
 pi.write(ir_power_pin, 1)
 time.sleep(1)
@@ -87,13 +85,14 @@ class MinimalPublisher(Node):
         self.ready = False
         self.target_hit = False
 
+        # once the bot is ready and has informed us, set self.ready to true so we can fire
     def launcher_ready_callback(self, msg):
         self.get_logger().info('Received fr launcher_ready: "%s"' % msg.data)
         if (msg.data == 'launcher ready'):
             self.ready = True
         else:
             self.ready = False
-
+        # periodically publish information about the target 
     def timer_callback(self):
         if (not self.target_hit):
             data = String()
@@ -105,59 +104,8 @@ class MinimalPublisher(Node):
             if (data == 'on target' and self.ready):
                 self.fire_ping_pong()
         return
-i.write(in1, 1)
-pi.write(d2, 1)
-pi.write(d1, 0)
-
-
-THRESHOLDTEMP = 32
-
-# setup i2c for ir
-
-ir_power_pin = 17
-pi.write(ir_power_pin, 1)
-time.sleep(1)
-i2c = busio.I2C(board.SCL, board.SDA)
-amg = adafruit_amg88xx.AMG88XX(i2c)
-
-
-class MinimalPublisher(Node):
-    def __init__(self):
-        super().__init__('minimal_publisher')
-
-        # create publisher for data about target
-        self.publisher_ = self.create_publisher(String, 'topic', 10)
-        timer_period = 0.2 # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback)
-
-        # create subscriber to tell launcher when it can fire
-        self.launcher_ready_subscription = self.create_subscription(
-            String,
-            'launcher_ready',
-            self.launcher_ready_callback,
-            10)
-        self.launcher_ready_subscription # prevent unused variable warning
-        self.ready = False
-        self.target_hit = False
-
-    def launcher_ready_callback(self, msg):
-        self.get_logger().info('Received fr launcher_ready: "%s"' % msg.data)
-        if (msg.data == 'launcher ready'):
-            self.ready = True
-        else:
-            self.ready = False
-
-    def timer_callback(self):
-        if (not self.target_hit):
-            data = String()
-            data = self.detect_target()
-            msg = String()
-            msg.data = data
-            self.publisher_.publish(msg)
-            self.get_logger().info('Publishing: "%s"' % msg.data)
-            if (data == 'on target' and self.ready):
-                self.fire_ping_pong()
-        return
+    
+    # identify if there is a target and where it is
     def detect_target(self):
         i = 0
         max_temp = 0
@@ -171,11 +119,11 @@ class MinimalPublisher(Node):
          #   print()
             i += 1
         #print(combined_row)
-        #detect target
+        # find out if target is left, right or center
         weight_left = (combined_row[0] + combined_row[1] + combined_row[2] + combined_row[3]) /4 * 3
         weight_center = combined_row[4] * 3
         weight_right = (combined_row[5] + combined_row[6] + combined_row[7])
-        print(max_temp)
+        # print(max_temp)
         if (self.target_hit):
             return 'target hit'
         elif (max_temp < THRESHOLDTEMP):
@@ -189,16 +137,17 @@ class MinimalPublisher(Node):
         else:
             return '?'
 
+        # once we are on target and the bot is ready, pitch to the appropriate angle and fire
     def fire_ping_pong(self):
         time.sleep(2)
         if (not self.target_hit):
-            # aim picthing
-            #pitchcontrols
+            # aim pitching
             combined_col = [0 for i in range(8)]
             middle = False;
             count = 0
             count_up = 0
             count_down = 0
+            # pitch up/ down until the target is in the middle
             while(not middle and count < 5):
                 max_temp = 0
                 for row in amg.pixels:
@@ -213,7 +162,7 @@ class MinimalPublisher(Node):
                 weight_up = (combined_col[0] + combined_col[1] + combined_col[2] + combined_col[3] + combined_col[4]) * 3/5
                 weight_middle = (combined_col[5]) * 3
                 weight_down = (combined_col[6] + combined_col[7]) * 3/2
-                print(max_temp)
+                # print(max_temp)
                 if (max_temp > THRESHOLDTEMP):
                     if (weight_middle > weight_up and weight_middle > weight_down):
                         print("target middle")
@@ -237,21 +186,22 @@ class MinimalPublisher(Node):
                 count += 1
                 time.sleep(0.2)
 
-
+            # firing sequence
             pi.write(en,1)                   # start flywheels
             for i in range (3):
                 time.sleep(0.5)
-                pi.set_servo_pulsewidth(servo_pin, backward)      # move rack back
+                pi.set_servo_pulsewidth(servo_pin, backward)     # move rack back
                 time.sleep(0.21)
                 pi.set_servo_pulsewidth(servo_pin, stop)         # stop rack movement
                 time.sleep(0.5)
-                pi.set_servo_pulsewidth(servo_pin, forward) # move rack forward to push ball
+                pi.set_servo_pulsewidth(servo_pin, forward)      # move rack forward to push ball
                 time.sleep(0.23)
                 pi.set_servo_pulsewidth(servo_pin, stop)         # stop rack movement
                 time.sleep(0.5)
             pi.write(en, 0)                  # stop flywheels
         self.target_hit = True
 
+        # reset the launcher to be vertically upright
         count_up_net = count_up - count_down
         #  print(count_up_net)
         # if net move up, shift down
@@ -272,7 +222,6 @@ class MinimalPublisher(Node):
                 time.sleep(0.4)
                 count_up_net += 1
                 # print(count_up_net)
-
         pi.stop()
         return
 
@@ -288,8 +237,6 @@ def main(args=None):
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-        #GPIO.output(en,0)
-        #GPIO.cleanup()
         minimal_publisher.destroy_node()
         rclpy.shutdown()
 
