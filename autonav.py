@@ -71,15 +71,6 @@ def euler_from_quaternion(x, y, z, w):
     return roll_x, pitch_y, yaw_z # in radians
 
 
-def write_to_file(file_name, text):
-    """
-    Write the string representation of a text into a file
-    """
-    f = open(file_name, 'w')
-    f.write(repr(text))
-    f.close()
-    
-
 def valid(point, matrix):
     """
     Check if a point is valid given the matrix where the point is in
@@ -90,7 +81,7 @@ def valid(point, matrix):
 
 def bfs(matrix, start, end_cond, not_neighbour_cond):
     """
-    Breath first search from the given starting point until a point which satisfies the ending condition given is
+    Breadth first search from the given starting point until a point which satisfies the ending condition given is
     reached given the matrix where the starting point is in and a not-a-neighbour condition
     """
     # get the number of rows and columns of the matrix
@@ -163,7 +154,7 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
 
     def backtrack():
         """
-        Returns the shortest path as a result of the breath first search
+        Returns the shortest path as a result of the breadth first search
         Note that the ending point is not added to the path returned to avoid 
         crashing into walls
         """
@@ -381,7 +372,7 @@ class autonav(node):
                             if test_node != node and valid(test_node, self.encoded_msgdata):
                                 self.encoded_msgdata[test_node[0]][test_node[1]] = occupied
         # print to file
-        np.savetxt('padded_msgdata.txt', self.encoded_msgdata)
+        np.savetxt('padded_map.txt', self.encoded_msgdata)
 
         # get transformation
         try:
@@ -561,7 +552,7 @@ class autonav(node):
                 self.encoded_msgdata[points[0]][points[1]] = 5
             # encode ending point
             self.encoded_msgdata[short_path[-1][0]][short_path[-1][1]] = 7
-            np.savetxt('map_with_shorter_path.txt', self.encoded_msgdata)
+            np.savetxt('padded_map_with_shorter_path.txt', self.encoded_msgdata)
             # auto plot map with shorter path
             plt.imshow(self.encoded_msgdata, cmap='gray')
             plt.pause(0.00000000001)
@@ -571,7 +562,7 @@ class autonav(node):
                 self.encoded_msgdata[points[0]][points[1]] = 5
             # encode ending point
             self.encoded_msgdata[short_path[-1][0]][short_path[-1][1]] = 7
-            np.savetxt('map_with_path.txt', self.encoded_msgdata)
+            np.savetxt('padded_map_with_path.txt', self.encoded_msgdata)
 
             # turtlebot move according to the shorter path generated
             curr_point = short_path[0]
