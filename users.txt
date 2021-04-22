@@ -1,5 +1,6 @@
-Muruganantham Harinithish harinithish
-Mukherjee Kaustav kaustavmu
-Liew Xin Yi xyliew25
-Ng Cheng Yang, Titus titustortoiseturtle1999
-Namuduri Venkata Raghav NVR-Youngboy
+Name 'Github Username'
+Muruganantham Harinithish 'harinithish'
+Mukherjee Kaustav 'kaustavmu'
+Liew Xin Yi 'xyliew25'
+Ng Cheng Yang, Titus 'titustortoiseturtle1999'
+Namuduri Venkata Raghav 'NVR-Youngboy'
