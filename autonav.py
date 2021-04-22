@@ -35,7 +35,6 @@ increase_in_yaw = 0.13
 speedchange = 0.2
 speed_calibration = 0.88
 padding = 4
-buffer_time = 0
 occ_bins = [-1, 0, 51, 100]
 stop_distance = 0.5
 shorter_stop_distance = 0.4
@@ -610,7 +609,7 @@ class autonav(node):
                 calibrated_speed = speedchange * speed_calibration
                 # self.get_logger().info('Speed: %f m/s' % calibrated_speed)
                 # calculate time
-                calibrated_time = calibrated_distance / calibrated_speed + buffer_time
+                calibrated_time = calibrated_distance / calibrated_speed
                 self.get_logger().info('Time of moving forward: %f s' % calibrated_time)
 
                 # in case the turtlebot moves too far forward and is going to crashes into the wall
