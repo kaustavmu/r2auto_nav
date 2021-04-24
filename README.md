@@ -5,11 +5,13 @@ by firing a payload at high speed to the target. The core software in this repos
 features of our product. It is written in Python 3 due to its simplicity in syntax, while still providing
 significant customizability to the functionalities of our product.
 
+The programs and features created for the ASMR are done within the Robot Operating Software 2 foxy environment. Before use of the ASMR, ensure that you have a fundamental understanding of the ROS2 environment. For more information, visit the ROS2 documentation here: https://docs.ros.org/en/foxy/index.html.
+
 ## Installation
 
 Please ensure that you have Python3 installed, if not, please do so.
 This repository requires the use of the scipy, numpy and matplotlib libraries.
-If you have not, refer to the links below to install them:
+If you do not have them, refer to the guides below for installation:
 
 scipy: https://www.scipy.org/install.html
 
@@ -32,26 +34,13 @@ To install the programs:
 
 5. Navigate to your home directory and run 
 '''colcon build''' 
-to complete the set up process.
+to complete the set up process on the ROS master.
 
 ## Usage
 
-Open 4 terminal windows.
+The ASMR comes with 2 main modes of operation, Autonomous Navigation and Mapping as well as Reconnaissance and Firing mode. We have included other basic functionalities as well. 
 
-In the first window,
-'''ssh ubuntu@ ''' OR '''ssh ubuntu@'''(Backup Raspberry Pi)
-'''rosbu'''
-
-In the second window,
-'''colcon build'''(only necessary if you have made changes to any code)
-'''cd'''
-'''rslam'''
-
-In the third window,
-'''ros2 run pypubsub talker'''
-
-In the fourth window,
-'''ros2 run auto_nav (name of python file) '''
+For a complete guide on each of the 2 modes and how to use them, please refer to the ASMR Hardware Design documentation. 
 
 ## Calibration
 Given the flexibility presented by the code, calibration and optimization will depend on
@@ -62,7 +51,7 @@ relevant code.
 Please centre your contributions, if possible, along the following areas.
 1. Best calibrated values for highest power efficiency
 2. Improved optimizations for mapping algorithm
-3. Smoother overall motion(Continuous motion rather than stop-start motion in current model)
+3. Smoother overall motion(Motion in an arc rather than straight line and rotate motion in the current model)
 Do avoid pull requests for cosmetic fixes
 
 
