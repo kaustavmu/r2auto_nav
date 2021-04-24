@@ -9,8 +9,11 @@ significant customizability to the functionalities of our product.
 
 This repository requires the use of the scipy, numpy and matplotlib libraries.
 If you have not, refer to the links below to install them:
+
 scipy: https://www.scipy.org/install.html
+
 numpy: https://numpy.org/install/
+
 matplotlib: https://pypi.org/project/matplotlib/
 
 Clone this repository using the following steps:
