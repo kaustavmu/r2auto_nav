@@ -69,7 +69,7 @@ Do avoid pull requests for cosmetic fixes
 
 
 ## License
-[BSD] 3 clause licence
+[Apache-2.0] Apache License Version 2.0
 
 
 
