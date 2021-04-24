@@ -22,7 +22,7 @@ matplotlib: https://pypi.org/project/matplotlib/
 
 This repository consists of the programs and files required to operate the ASMR robot using the ROS2 environment.
 
-To install the programs:
+To set up the ROS master:
 
 1. Create a new ROS2 workspace by following this guide: https://docs.ros.org/en/foxy/Tutorials/Workspace/Creating-A-Workspace.html, but name the workspace asmr_ws.
 
@@ -35,6 +35,19 @@ To install the programs:
 5. Navigate to your home directory and run 
 '''colcon build''' 
 to complete the set up process on the ROS master.
+
+
+To set up the Raspberry Pi on the ASMR:
+
+1. Create a new package within the turltebot_3 ws by folowing this guide: https://docs.ros.org/en/foxy/Tutorials/Creating-Your-First-ROS2-Package.html, but name the package launcher.
+
+2. Navigate to the turlebot3_ws/src/launcher directory, and replace the setup.py file with the setup_Rpi.py file in the repository.
+
+3. Navigate to the asmr_ws/src/auto_nav/auto_nav directory, and place all the files nav_launcher.py, recon_launcher.py, and setup_Rpi.py into the folder.
+
+4. Navigate to your home directory and run 
+'''colcon build''' 
+to complete the set up process on the Raspberry Pi.
 
 ## Usage
 
