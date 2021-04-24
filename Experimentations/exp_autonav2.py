@@ -31,14 +31,12 @@ from queue import Queue
 
 # constants
 rotatechange = 0.13
-increase_in_yaw = 0.13
 speedchange = 0.08
 speed_calibration = 0.75
 padding = 3
-buffer_time = 0
+buffer_time = 1
 occ_bins = [-1, 0, 51, 100]
 stop_distance = 0.5
-shorter_stop_distance = 0.4
 front_angle = 30
 front_angles = range(-front_angle,front_angle+1,1)
 scanfile = 'lidar.txt'
@@ -97,8 +95,8 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
     queue = Queue(row * col)
     end = None
 
-    #def valid(node):
-    #    return node[0] >= 0 and node[0] < row and node[1] >= 0 and node[1] < col
+    def valid(node):
+        return node[0] >= 0 and node[0] < row and node[1] >= 0 and node[1] < col
     
     def getNeighbours(node):
         neighbours = []
@@ -121,11 +119,12 @@ def bfs(matrix, start, end_cond, not_neighbour_cond):
         potential_neighbours.append(top_right)
         potential_neighbours.append(bottom_left)
         potential_neighbours.append(bottom_right)
-       
+        
         for potential_neighbour in potential_neighbours:
-            if valid(potential_neighbour, matrix) and matrix[potential_neighbour[0]][potential_neighbour[1]] != not_neighbour_cond and visited[potential_neighbour[0]][potential_neighbour[1]] == 0:
+            if valid(potential_neighbour) and matrix[potential_neighbour[0]][potential_neighbour[1]] != not_neighbour_cond and visited[potential_neighbour[0]][potential_neighbour[1]] == 0:
                 neighbours.append(potential_neighbour)
         return neighbours
+
 
     def backtrack():
         path = []
@@ -230,52 +229,52 @@ def shorter_path(path):
     return shorter_path
 
 
-#def getNeighbours(node, matrix):
-#    neighbours = []
-#    potential_neighbours = []
+def getNeighbours(node, matrix):
+    neighbours = []
+    potential_neighbours = []
 
-#    top = (node[0]-1, node[1])
-#    left = (node[0], node[1]-1)
-#    right = (node[0], node[1]+1)
-#    bottom = (node[0]+1, node[1])
-#    top_left = (node[0]-1, node[1]-1)
-#    top_right = (node[0]-1, node[1]+1)
-#    bottom_left = (node[0]+1, node[1]-1)
-#    bottom_right = (node[0]+1, node[1]+1)
+    top = (node[0]-1, node[1])
+    left = (node[0], node[1]-1)
+    right = (node[0], node[1]+1)
+    bottom = (node[0]+1, node[1])
+    top_left = (node[0]-1, node[1]-1)
+    top_right = (node[0]-1, node[1]+1)
+    bottom_left = (node[0]+1, node[1]-1)
+    bottom_right = (node[0]+1, node[1]+1)
 
-#    potential_neighbours.append(top)
-#    potential_neighbours.append(left)
-#    potential_neighbours.append(right)
-#    potential_neighbours.append(bottom)
-#    potential_neighbours.append(top_left)
-#    potential_neighbours.append(top_right)
-#    potential_neighbours.append(bottom_left)
-#    potential_neighbours.append(bottom_right)
+    potential_neighbours.append(top)
+    potential_neighbours.append(left)
+    potential_neighbours.append(right)
+    potential_neighbours.append(bottom)
+    potential_neighbours.append(top_left)
+    potential_neighbours.append(top_right)
+    potential_neighbours.append(bottom_left)
+    potential_neighbours.append(bottom_right)
     
-#    for potential_neighbour in potential_neighbours:
-#        if valid(potential_neighbour, matrix):
-#            neighbours.append(potential_neighbour)
-#    return neighbours
+    for potential_neighbour in potential_neighbours:
+        if valid(potential_neighbour, matrix):
+            neighbours.append(potential_neighbour)
+    return neighbours
 
 
-#def shorter_path_v2(path, matrix):
-#    if len(path) <= 2:
-#        return path
+def shorter_path_v2(path, matrix):
+    if len(path) <= 2:
+        return path
 
-#    shorter_path = [path[0]]
-#    for i in range(1, len(path) - 1):
-#        point = path[i]
-#        neighbours = getNeighbours(point, matrix)
-#        number_of_neighbours = 0
-#        for j in range(len(neighbours)):
-#            neighbour = neighbours[j]
-#            number_of_neighbours += matrix[neighbour[0]][neighbour[1]]
-#        if number_of_neighbours == 2:
-#            shorter_path.append(neighbour)
+    shorter_path = [path[0]]
+    for i in range(1, len(path) - 1):
+        point = path[i]
+        neighbours = getNeighbours(point, matrix)
+        number_of_neighbours = 0
+        for j in range(len(neighbours)):
+            neighbour = neighbours[j]
+            number_of_neighbours += matrix[neighbour[0]][neighbour[1]]
+        if number_of_neighbours == 2:
+            shorter_path.append(neighbour)
 
-#    shorter_path.append(path[-1])
+    shorter_path.append(path[-1])
 
-#    return shorter_path
+    return shorter_path
 
 
 class AutoNav(Node):
@@ -288,8 +287,6 @@ class AutoNav(Node):
         self.grid_x = -1
         self.grid_y = -1
         self.map_res = 0
-        self.called_once = False
-        self.manual_yaw = 0
         
         # create publisher for moving TurtleBot
         self.publisher_ = self.create_publisher(Twist,'cmd_vel',10)
@@ -416,10 +413,7 @@ class AutoNav(Node):
         twist = Twist()
         
         # get current yaw angle
-        #current_yaw = self.yaw
-        
-        current_yaw = self.manual_yaw
-
+        current_yaw = self.yaw
         # log the info
         self.get_logger().info('Current yaw: %f degree' % math.degrees(current_yaw))
         # we are going to use complex numbers to avoid problems when the angles go from
@@ -434,7 +428,7 @@ class AutoNav(Node):
         c_change = c_target_yaw / c_yaw
         # get the sign of the imaginary component to figure out which way we have to turn
         c_change_dir = np.sign(c_change.imag)
-        #self.get_logger().info('c_change_dir: %f' % c_change_dir)
+        #self.get_logger().info('c_change_dir: %i' % c_change_dir)
         # set linear speed to zero so the TurtleBot rotates on the spot
         twist.linear.x = 0.0
         # set the direction to rotate
@@ -450,19 +444,7 @@ class AutoNav(Node):
         while(c_change_dir * c_dir_diff > 0):
             # allow the callback functions to run
             rclpy.spin_once(self)
-            #current_yaw = self.yaw
-
-            time.sleep(1)
-            if c_change_dir > 0:
-                current_yaw += increase_in_yaw
-            else:
-                current_yaw -= increase_in_yaw
-            if math.degrees(current_yaw) > 180:
-                current_yaw = math.radians(math.degrees(current_yaw) - 360)
-            elif math.degrees(current_yaw) < -180:
-                current_yaw = math.radians(math.degrees(current_yaw) + 360)
-            self.get_logger().info('current_yaw: %f' % current_yaw)
-
+            current_yaw = self.yaw
             # convert the current yaw to complex form
             c_yaw = complex(math.cos(current_yaw),math.sin(current_yaw))
             # self.get_logger().info('Current Yaw: %f' % math.degrees(current_yaw))
@@ -472,11 +454,8 @@ class AutoNav(Node):
             c_dir_diff = np.sign(c_change.imag)
             # self.get_logger().info('c_change_dir: %f c_dir_diff: %f' % (c_change_dir, c_dir_diff))
 
-        #self.get_logger().info('c_dir_diff: %f' % c_dir_diff)
+        #self.get_logger().info('c_dir_diff: %i' % c_dir_diff)
         self.get_logger().info('End yaw: %f degree' % math.degrees(current_yaw))
-        
-        self.manual_yaw = current_yaw
-
         # set the rotation speed to 0
         twist.angular.z = 0.0
         # stop the rotation
@@ -517,16 +496,8 @@ class AutoNav(Node):
 
             # if path generated is empty, navigation is completed!
             if len(path) == 0:
-                out_of_wall_path = bfs(self.encoded_msgdata, [self.grid_x, self.grid_y], 2, 1)
-                np.savetxt('out_of_wall_path.txt', out_of_wall_path)
-                if len(out_of_wall_path) == 1:
-                    self.get_logger().info('Fully mapped!')
-                    self.stopbot()
-                else:
-                    out_of_wall_coordinate = out_of_wall_path[-1]
-                    path = bfs(self.encoded_msgdata, [out_of_wall_coordinate[0], out_of_wall_coordinate[1]], 1, 3)
-                    np.savetxt('new_path.txt', path)
-                    self.get_logger().info('New path')
+                self.get_logger().info('Fully mapped!')
+                self.stopbot()
 
             # generate shorter path
             short_path = shorter_path(path)
@@ -555,12 +526,7 @@ class AutoNav(Node):
             curr_point = short_path[0]
             for point in short_path[1:]:
                 # rotate turtlebot
-                #angle = cal_angle(curr_point, point, math.degrees(self.yaw))
-
-                self.get_logger().info("self.yaw: %f" % self.yaw)
-                self.get_logger().info("self.manual_yaw: %f" % self.manual_yaw)
-                angle = cal_angle(curr_point, point, math.degrees(self.manual_yaw))
-
+                angle = cal_angle(curr_point, point, math.degrees(self.yaw))
                 if angle < 0:
                     self.get_logger().info('Rotation: %f degree clockwise' % angle)
                 elif angle > 0:
@@ -598,40 +564,21 @@ class AutoNav(Node):
                 distance = ((curr_point[0] - point[0]) ** 2 + (curr_point[1] - point[1]) ** 2) ** 0.5 
                 calibrated_distance = distance * self.map_res
                 #calibrated_distance = distance
-                #self.get_logger().info('self.map_res: %f' % self.map_res)
-                #self.get_logger().info('Distance: %f m' % calibrated_distance)
+                self.get_logger().info('self.map_res: %f' % self.map_res)
+                self.get_logger().info('Distance: %f m' % calibrated_distance)
                 # calculate speed
                 calibrated_speed = speedchange * speed_calibration
-                #self.get_logger().info('Speed: %f m/s' % calibrated_speed)
+                self.get_logger().info('Speed: %f m/s' % calibrated_speed)
                 # calculate time
                 calibrated_time = calibrated_distance / calibrated_speed + buffer_time
                 self.get_logger().info('Time: %f s' % calibrated_time)
                 time.sleep(calibrated_time)
-
-                #curr_time = 0
-                #self.get_logger().info("Current time: %f" % curr_time)
-                #while curr_time < calibrated_time:
-                #    time.sleep(1)
-                #    curr_time += 1
-                #    self.get_logger().info("Current time: %f" % curr_time)
-                #    rclpy.spin_once(self)
-                    # in case the turtlebot does not follow the path generated and going to crash into the wall
-                #    if not self.called_once and self.laser_range.size != 0:
-                #        lri = (self.laser_range[front_angles]<float(shorter_stop_distance)).nonzero()
-                #        if(len(lri[0])>0):
-                #            self.called_once = True
-                #            self.get_logger().info('Too far!')
-                #            self.stopbot()
-                #            self.pick_direction()
-
                 self.get_logger().info('Done moving forward')
 
                 # update current point
                 #self.get_logger().info('End coordinate: %i, %i' % (self.grid_x, self.grid_y))
                 #curr_point = [self.grid_x, self.grid_y]
                 curr_point = [point[0], point[1]]
-
-            #self.called_once = False
 
 
     def stopbot(self):
