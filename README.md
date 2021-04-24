@@ -7,6 +7,7 @@ significant customizability to the functionalities of our product.
 
 ## Installation
 
+Please ensure that you have Python3 installed, if not, please do so.
 This repository requires the use of the scipy, numpy and matplotlib libraries.
 If you have not, refer to the links below to install them:
 
@@ -16,21 +17,22 @@ numpy: https://numpy.org/install/
 
 matplotlib: https://pypi.org/project/matplotlib/
 
-Clone this repository using the following steps:
 
-1.
+This repository consists of the programs and files required to operate the ASMR robot using the ROS2 environment.
 
-2.
+To install the programs:
 
-3.
+1. Create a new ROS2 workspace by following this guide: https://docs.ros.org/en/foxy/Tutorials/Workspace/Creating-A-Workspace.html, but name the workspace asmr_ws.
 
-4.
+2. Create a new package by folowing this guide: https://docs.ros.org/en/foxy/Tutorials/Creating-Your-First-ROS2-Package.html, but name the package auto_nav.
 
-5.
+3. Navigate to the asmr_ws/src/auto_nav directory, and replace the setup.py and package.xml files with the ones in the repository.
 
-FInally, Install Python 3 using the command 
+4. Navigate to the asmr_ws/src/auto_nav/auto_nav directory, and place all program files except nav_launcher.py, recon_launcher.py, and setup_Rpi.py into the folder.
 
-After which, you are ready to go!
+5. Navigate to your home directory and run 
+'''colcon build''' 
+to complete the set up process.
 
 ## Usage
 
